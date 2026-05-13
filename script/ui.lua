@@ -1,25 +1,13 @@
+-- puppyware fork for comet
 local Config = {
     Themes = {
         Default = {
             Accent={215, 214, 213}
         }
-    },
-    Layout = {
-        SectionWidthLeft = 0.5,
-        SectionWidthRight = 0.5,
-        SectionGap = 10
-    },
-    Borders = {
-        Enabled = true,
-        Top = true,
-        Right = true,
-        Bottom = true,
-        Left = true,
-        Color = Color3.fromRGB(12,12,12),
-        Thickness = 1
     }
 }
 
+-- // variables
 local comet = {}
 local pages = {}
 local sections = {}
@@ -38,18 +26,21 @@ local configloaders = {}
 local watermarks = {}
 local loaders = {}
 local notifications = {}
+--
 local utility = {}
 local util={}
+--
 local check_exploit = (syn and "Synapse") or (KRNL_LOADED and "Krnl") or (isourclosure and "ScriptWare") or nil
 local plrs = game:GetService("Players")
 local cre = game:GetService("CoreGui")
 local rs = game:GetService("RunService")
-local ts = game:GetService("TweenService")
-local uis = game:GetService("UserInputService")
+local ts = game:GetService("TweenService") 
+local uis = game:GetService("UserInputService") 
 local hs = game:GetService("HttpService")
 local ws = game:GetService("Workspace")
 local plr = plrs.LocalPlayer
 local cam = ws.CurrentCamera
+-- // indexes
 comet.__index = comet
 pages.__index = pages
 sections.__index = sections
@@ -69,28 +60,35 @@ watermarks.__index = watermarks
 loaders.__index = loaders
 notifications.__index = notifications
 
-utility.new = function(instance,properties)
+-- // functions
+utility.new = function(instance,properties) 
+	-- // instance
 	local ins = Instance.new(instance)
+	-- // properties setting
 	for property,value in pairs(properties) do
 		ins[property] = value
 	end
+	-- // return
 	return ins
 end
-
+--
 utility.dragify = function(ins,touse)
 	local dragging
 	local dragInput
 	local dragStart
 	local startPos
+	--
 	local function update(input)
 		local delta = input.Position - dragStart
 		touse:TweenPosition(UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.1,true)
 	end
+	--
 	ins.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
 			startPos = touse.Position
+
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -98,26 +96,28 @@ utility.dragify = function(ins,touse)
 			end)
 		end
 	end)
+	--
 	ins.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			dragInput = input
 		end
 	end)
+	--
 	uis.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			update(input)
 		end
 	end)
 end
-
+--
 utility.round = function(n,d)
 	return tonumber(string.format("%."..(d or 0).."f",n))
 end
-
+--
 utility.zigzag = function(X)
 	return math.acos(math.cos(X*math.pi))/math.pi
 end
-
+--
 utility.capatalize = function(s)
 	local l = ""
 	for v in s:gmatch('%u') do
@@ -125,103 +125,34 @@ utility.capatalize = function(s)
 	end
 	return l
 end
-
+--
 utility.splitenum = function(enum)
 	local s = tostring(enum):split(".")
 	return s[#s]
 end
-
+--
 utility.from_hex = function(h)
 	local r,g,b = string.match(h,"^#?(%w%w)(%w%w)(%w%w)$")
 	return Color3.fromRGB(tonumber(r,16), tonumber(g,16), tonumber(b,16))
 end
-
+--
 utility.to_hex = function(c)
 	return string.format("#%02X%02X%02X",c.R *255,c.G *255,c.B *255)
 end
-
+--
 utility.removespaces = function(s)
    return s:gsub(" ","")
 end
-
-local function applyCorner(parent, enable, radius)
-	if enable then
-		local r = tonumber(radius) or 1
-		utility.new("UICorner",{CornerRadius = UDim.new(0,r), Parent = parent})
-	end
-end
-
-local function applyBorders(frame, opts)
-	local o = {
-		Enabled = Config.Borders.Enabled,
-		Top = Config.Borders.Top,
-		Right = Config.Borders.Right,
-		Bottom = Config.Borders.Bottom,
-		Left = Config.Borders.Left,
-		Color = Config.Borders.Color,
-		Thickness = Config.Borders.Thickness
-	}
-	for k,v in pairs(opts or {}) do o[k]=v end
-	frame.BorderSizePixel = 0
-	if not o.Enabled then return end
-	local function edge(name, size, pos)
-		local f = utility.new("Frame",{
-			Name=name,
-			BackgroundColor3 = o.Color,
-			BorderSizePixel = 0,
-			Size=size,
-			Position=pos,
-			ZIndex = frame.ZIndex+1,
-			Parent = frame
-		})
-		return f
-	end
-	if o.Top then edge("BTop", UDim2.new(1,0,0,o.Thickness), UDim2.new(0,0,0,0)) end
-	if o.Bottom then edge("BBottom", UDim2.new(1,0,0,o.Thickness), UDim2.new(0,0,1,-o.Thickness)) end
-	if o.Left then edge("BLeft", UDim2.new(0,o.Thickness,1,0), UDim2.new(0,0,0,0)) end
-	if o.Right then edge("BRight", UDim2.new(0,o.Thickness,1,0), UDim2.new(1,-o.Thickness,0,0)) end
-end
-
-local function borderOptions(props, defaults)
-	local out = {}
-	local b = props or {}
-	out.border = (b.border == nil) and true or b.border
-	out.borderTop = (b["border-top"] == nil and b.borderTop == nil) and true or (b["border-top"] ~= nil and b["border-top"] or b.borderTop)
-	out.borderBottom = (b["border-bottom"] == nil and b.borderBottom == nil) and true or (b["border-bottom"] ~= nil and b["border-bottom"] or b.borderBottom)
-	out.borderLeft = (b["border-left"] == nil and b.borderLeft == nil) and true or (b["border-left"] ~= nil and b["border-left"] or b.borderLeft)
-	out.borderRight = (b["border-right"] == nil and b.borderRight == nil) and true or (b["border-right"] ~= nil and b["border-right"] or b.borderRight)
-	out.borderColor = b.borderColor or b.bordercolor or b.border_colour or defaults and defaults.Color or Config.Borders.Color
-	out.borderThickness = b.borderThickness or b.borderthickness or b["border-width"] or defaults and defaults.Thickness or Config.Borders.Thickness
-	if type(out.borderColor)=="string" then
-		if out.borderColor:lower():find("rgba") then
-			local r,g,bb,a = out.borderColor:match("rgba%((%d+),%s*(%d+),%s*(%d+),%s*([%d%.]+)%)")
-			out.borderColor = Color3.fromRGB(tonumber(r or 255),tonumber(g or 255),tonumber(bb or 255))
-		else
-			out.borderColor = utility.from_hex(out.borderColor)
-		end
-	end
-	return out
-end
-
-local function applyRounding(frame, rounding)
-	applyCorner(frame, rounding and rounding.enabled or rounding, rounding and rounding.radius or rounding)
-end
-
+-- // main
 function comet:new(props)
+	-- // properties
 	local textsize = props.textsize or props.TextSize or props.textSize or props.Textsize or 12
 	local font = props.font or props.Font or "RobotoMono"
 	local name = props.name or props.Name or props.UiName or props.Uiname or props.uiName or props.username or props.Username or props.UserName or props.userName or "new ui"
 	local color = props.color or props.Color or props.mainColor or props.maincolor or props.MainColor or props.Maincolor or props.Accent or props.accent or Color3.fromRGB(unpack(Config.Themes.Default.Accent))
-	local roundedGlobal = props.rounded or props.Rounded or false
-	local roundnessGlobal = props.roundness or props.Roundness or 1
-	local rounding = props.rounding or {enabled = roundedGlobal, radius = roundnessGlobal}
-	local borderCfg = borderOptions(props, Config.Borders)
-	local layoutOverrides = props.layout or {}
-	local sectionWidthLeft = layoutOverrides.SectionWidthLeft or Config.Layout.SectionWidthLeft
-	local sectionWidthRight = layoutOverrides.SectionWidthRight or Config.Layout.SectionWidthRight
-	local sectionGap = layoutOverrides.SectionGap or Config.Layout.SectionGap
-
+	-- // variables
 	local window = {}
+	-- // main
 	local screen = utility.new(
 		"ScreenGui",
 		{
@@ -232,89 +163,65 @@ function comet:new(props)
 			Parent = cre
 		}
 	)
-	if (check_exploit == "Synapse" and syn.request) then
-		syn.protect_gui(screen)
-	end
+	--
+        if (check_exploit == "Synapse" and syn.request) then
+	syn.protect_gui(screen)
+        end
+	-- 1
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = color,
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,500,0,606),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Parent = screen
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = borderCfg.borderColor,
-		Thickness = borderCfg.borderThickness
-	})
+	-- 2
 	local outline2 = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,-4,1,-4),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = borderCfg.borderColor,
-		Thickness = borderCfg.borderThickness
-	})
+	-- 3
 	local indent = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Parent = outline2
 		}
 	)
-	applyRounding(indent, rounding)
-	applyBorders(indent, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	-- 4
 	local main = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,-10,1,-25),
 			Position = UDim2.new(0.5,0,1,-5),
 			Parent = outline2
 		}
 	)
-	applyRounding(main, rounding)
-	applyBorders(main, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local title = utility.new(
 		"Frame",
 		{
@@ -325,26 +232,21 @@ function comet:new(props)
 			Parent = outline2
 		}
 	)
+	-- 5
 	local outline3 = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0.5,0,0.5,0),
 			Parent = main
 		}
 	)
-	applyRounding(outline3, rounding)
-	applyBorders(outline3, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local titletext = utility.new(
 		"TextLabel",
 		{
@@ -354,8 +256,6 @@ function comet:new(props)
 			Position = UDim2.new(0.5,0,0,0),
 			Font = font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextXAlignment = "Left",
 			TextSize = textsize,
@@ -363,6 +263,7 @@ function comet:new(props)
 			Parent = title
 		}
 	)
+	-- 6
 	local holder = utility.new(
 		"Frame",
 		{
@@ -373,8 +274,8 @@ function comet:new(props)
 			Parent = main
 		}
 	)
-	applyRounding(holder, rounding)
-	local holder2 = utility.new(
+	-- 7
+	local holder = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
@@ -384,27 +285,21 @@ function comet:new(props)
 			Parent = main
 		}
 	)
-	applyRounding(holder2, rounding)
+	-- 8
 	local tabs = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,-20),
 			Position = UDim2.new(0.5,0,1,0),
-			Parent = holder2
+			Parent = holder
 		}
 	)
-	applyRounding(tabs, rounding)
-	applyBorders(tabs, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local tabsbuttons = utility.new(
 		"ScrollingFrame",
 		{
@@ -421,28 +316,23 @@ function comet:new(props)
 			ScrollBarThickness = 0,
 			HorizontalScrollBarInset = "None",
 			ScrollingDirection = "X",
-			Parent = holder2
+			Parent = holder
 		}
 	)
+	-- 9
 	local outline4 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = tabs
 		}
 	)
-	applyRounding(outline4, rounding)
-	applyBorders(outline4, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -451,10 +341,12 @@ function comet:new(props)
 			Parent = tabsbuttons
 		}
 	)
+	--
 	utility.dragify(title,outline)
+	-- // window tbl
 	window = {
 		["screen"] = screen,
-		["holder"] = holder2,
+		["holder"] = holder,
 		["labels"] = {},
 		["tabs"] = outline4,
 		["tabsbuttons"] = tabsbuttons,
@@ -470,7 +362,6 @@ function comet:new(props)
 		["key"] = Enum.KeyCode.RightShift,
 		["textsize"] = textsize,
 		["font"] = font,
-		["rounding"] = rounding,
 		["theme"] = {
 			["accent"] = color
 		},
@@ -480,18 +371,15 @@ function comet:new(props)
 				["BorderColor3"] = {},
 				["TextColor3"] = {}
 			}
-		},
-		["layout"] = {
-			SectionWidthLeft = sectionWidthLeft,
-			SectionWidthRight = sectionWidthRight,
-			SectionGap = sectionGap
-		},
-		["borders"] = borderCfg
+		}
 	}
+	--
 	table.insert(window.themeitems["accent"]["BackgroundColor3"],outline)
+	--
 	local toggled = true
 	local cooldown = false
 	local saved = UDim2.new(0,0,0,0)
+	--
 	uis.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.Keyboard then
 			if Input.KeyCode == window.key then
@@ -502,11 +390,13 @@ function comet:new(props)
 						saved = outline.Position
 						local xx,yy = 0,0
 						local xxx,yyy = 0,0
+						--
 						if (outline.AbsolutePosition.X+(outline.AbsoluteSize.X/2)) < (cam.ViewportSize.X/2) then
 							xx = -3
 						else
 							xx = 3
 						end
+						--
 						if window.y then
 							if (outline.AbsolutePosition.Y+(outline.AbsoluteSize.Y/2)) < (cam.ViewportSize.Y/2) then
 								yy = -3
@@ -517,6 +407,7 @@ function comet:new(props)
 							yy = saved.Y.Scale
 							yyy = saved.Y.Offset
 						end
+						--
 						if window.x == false and window.y == false then
 							screen.Enabled = false
 						else
@@ -539,18 +430,23 @@ function comet:new(props)
 			end
 		end
 	end)
+	--
 	window.labels[#window.labels+1] = titletext
+	-- // metatable indexing + return
 	setmetatable(window, comet)
 	return window
 end
-
+--
 function comet:watermark()
 	local watermark = {}
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(1,0),
 			BackgroundColor3 = self.theme.accent,
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,300,0,26),
 			Position = UDim2.new(1,-10,0,10),
 			ZIndex = 9900,
@@ -558,59 +454,37 @@ function comet:watermark()
 			Parent = self.screen
 		}
 	)
-	applyRounding(outline, self.rounding)
-	applyBorders(outline, {
-		Enabled = self.borders.border,
-		Top = self.borders.borderTop,
-		Right = self.borders.borderRight,
-		Bottom = self.borders.borderBottom,
-		Left = self.borders.borderLeft,
-		Color = self.borders.borderColor,
-		Thickness = self.borders.borderThickness
-	})
+	--
 	table.insert(self.themeitems["accent"]["BackgroundColor3"],outline)
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,-4,1,-4),
 			Position = UDim2.new(0.5,0,0.5,0),
 			ZIndex = 9901,
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, self.rounding)
-	applyBorders(outline2, {
-		Enabled = self.borders.border,
-		Top = self.borders.borderTop,
-		Right = self.borders.borderRight,
-		Bottom = self.borders.borderBottom,
-		Left = self.borders.borderLeft,
-		Color = self.borders.borderColor,
-		Thickness = self.borders.borderThickness
-	})
+	--
 	local indent = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0.5,0,0.5,0),
 			ZIndex = 9902,
 			Parent = outline2
 		}
 	)
-	applyRounding(indent, self.rounding)
-	applyBorders(indent, {
-		Enabled = self.borders.border,
-		Top = self.borders.borderTop,
-		Right = self.borders.borderRight,
-		Bottom = self.borders.borderBottom,
-		Left = self.borders.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = self.borders.borderThickness
-	})
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -620,8 +494,6 @@ function comet:watermark()
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.font,
 			Text = "",
-			TextWrapped=true,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextXAlignment = "Left",
 			TextSize = self.textsize,
@@ -630,10 +502,12 @@ function comet:watermark()
 			Parent = indent
 		}
 	)
+	--
 	local con
 	con = title:GetPropertyChangedSignal("TextBounds"):Connect(function()
 		outline.Size = UDim2.new(0,title.TextBounds.X+20,0,26)
 	end)
+	--
 	watermark = {
 		["outline"] = outline,
 		["outline2"] = outline2,
@@ -641,24 +515,31 @@ function comet:watermark()
 		["title"] = title,
 		["connection"] = con
 	}
+	--
 	self.labels[#self.labels+1] = title
+	--
 	setmetatable(watermark,watermarks)
 	return watermark
 end
-
+--
 function watermarks:update(content)
 	local content = content or {}
 	local watermark = self
+	--
 	local text = ""
+	--
 	for i,v in pairs(content) do
 		text = text..i..": "..v.."  "
 	end
+	--
 	text = text:sub(0, -3)
+	--
 	watermark.title.Text = text
 end
-
+--
 function watermarks:updateside(side)
 	side = utility.removespaces(tostring(side):lower())
+	--
 	local sides = {
 		topright = {
 			AnchorPoint = Vector2.new(1,0),
@@ -677,20 +558,20 @@ function watermarks:updateside(side)
 			Position = UDim2.new(0,10,1,-10)
 		}
 	}
+	--
 	if sides[side] then
 		self.outline.AnchorPoint = sides[side].AnchorPoint
 		self.outline.Position = sides[side].Position
 	end
 end
-
+--
 function comet:loader(props)
 	local name = props.name or props.Name or props.LoaderName or props.Loadername or props.loaderName or props.loadername or "Loader"
 	local lcontent = props.lcontent or props.Lcontent or props.LContent or props.content or props.Content or "Universal"
 	local closed = props.close or props.Close or props.closecallback or props.Closecallback or props.CloseCallback or props.closeCallback or function()end
 	local logedin = props.login or props.Login or props.logincallback or props.Logincallback or props.LoginCallback or props.loginCallback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
 	local loader = {}
+	--
 	local screen = utility.new(
 		"ScreenGui",
 		{
@@ -704,14 +585,15 @@ function comet:loader(props)
 	if (check_exploit == "Synapse" and syn.request) then
 		syn.protect_gui(screen)
 	end
+	--
+	-- Create a temporary TextLabel to measure text height
 	local tempLabel = utility.new(
 		"TextLabel",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 280, 0, 1000),
+			Size = UDim2.new(0, 280, 0, 1000), -- Wide enough, tall enough
 			Font = "RobotoMono",
 			Text = lcontent,
-			RichText = true,
 			TextSize = 12,
 			TextWrapped = true,
 			TextYAlignment = "Top",
@@ -719,22 +601,33 @@ function comet:loader(props)
 			Parent = screen
 		}
 	)
+	
+	-- Wait a frame for TextBounds to update
 	task.wait()
+	
 	local contentHeight = tempLabel.TextBounds.Y
 	tempLabel:Destroy()
+	
+	-- Calculate total loader height
 	local titleHeight = 20
 	local contentPadding = 10
 	local buttonHeight = 20
 	local buttonSpacing = 2
 	local totalButtonHeight = (buttonHeight * 2) + buttonSpacing
 	local bottomPadding = 10
+	
 	local totalHeight = titleHeight + contentPadding + contentHeight + contentPadding + totalButtonHeight + bottomPadding
+	
+	-- Ensure minimum height
 	totalHeight = math.max(totalHeight, 90)
+	
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(168, 52, 235),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(0, 300, 0, totalHeight),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			ZIndex = 9900,
@@ -742,58 +635,35 @@ function comet:loader(props)
 			Parent = screen
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = borderCfg.borderColor,
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, -4, 1, -4),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			ZIndex = 9901,
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = borderCfg.borderColor,
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local indent = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, 0, 1, 0),
 			Position = UDim2.new(0.5, 0, 0.5, 0),
 			ZIndex = 9902,
 			Parent = outline2
 		}
 	)
-	applyRounding(indent, rounding)
-	applyBorders(indent, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -803,8 +673,6 @@ function comet:loader(props)
 			Position = UDim2.new(0.5, 0, 0, 0),
 			Font = "RobotoMono",
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(168, 52, 235),
 			TextXAlignment = "Center",
 			TextSize = 12,
@@ -813,28 +681,30 @@ function comet:loader(props)
 			Parent = indent
 		}
 	)
+	--
 	local scripttitle = utility.new(
-		"TextLabel",
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, contentHeight),
-			Position = UDim2.new(0, 0, 0, titleHeight + contentPadding),
-			Font = "RobotoMono",
-			Text = lcontent,
-			RichText = true,
-			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextXAlignment = "Center",
-			TextWrapped=true,
-			TextYAlignment = "Center",
-			TextSize = 12,
-			TextStrokeTransparency = 0,
-			ZIndex = 9903,
-			Parent = indent
-		}
-	)
+			"TextLabel",
+			{
+				AnchorPoint = Vector2.new(0, 0),
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, 0, 0, contentHeight),
+				Position = UDim2.new(0, 0, 0, titleHeight + contentPadding),
+				Font = "RobotoMono",
+				Text = lcontent,
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				TextXAlignment = "Center",
+				TextYAlignment = "Center",
+				TextSize = 12,
+				TextStrokeTransparency = 0,
+				TextWrapped = true,
+				ZIndex = 9903,
+				Parent = indent
+			}
+		)
+	--
 	local buttonStartY = titleHeight + contentPadding + contentHeight + contentPadding
-	local function makebutton(nameb, parent)
+	--
+	local makebutton = function(name, parent)
 		local button_holder = utility.new(
 			"Frame",
 			{
@@ -844,47 +714,35 @@ function comet:loader(props)
 				Parent = parent
 			}
 		)
-		applyRounding(button_holder, rounding)
+		--
 		local button_outline = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(12, 12, 12),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 9905,
 				Parent = button_holder
 			}
 		)
-		applyRounding(button_outline, rounding)
-		applyBorders(button_outline, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(12,12,12),
-			Thickness = borderCfg.borderThickness
-		})
+		--
 		local button_outline2 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(56, 56, 56),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 9906,
 				Parent = button_outline
 			}
 		)
-		applyRounding(button_outline2, rounding)
-		applyBorders(button_outline2, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(56,56,56),
-			Thickness = borderCfg.borderThickness
-		})
+		--
 		local button_color = utility.new(
 			"Frame",
 			{
@@ -897,6 +755,7 @@ function comet:loader(props)
 				Parent = button_outline2
 			}
 		)
+		--
 		utility.new(
 			"UIGradient",
 			{
@@ -905,6 +764,7 @@ function comet:loader(props)
 				Parent = button_color
 			}
 		)
+		--
 		local button_button = utility.new(
 			"TextButton",
 			{
@@ -912,8 +772,7 @@ function comet:loader(props)
 				BackgroundTransparency = 1,
 				Size = UDim2.new(1, 0, 1, 0),
 				Position = UDim2.new(0, 0, 0, 0),
-				Text = nameb,
-				RichText = true,
+				Text = name,
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				TextSize = 12,
 				TextStrokeTransparency = 0,
@@ -922,16 +781,21 @@ function comet:loader(props)
 				Parent = button_holder
 			}
 		)
+		--
 		return {button_holder, button_outline, button_button}
 	end
+	--
 	local close = makebutton("Close", indent)
 	local ok = makebutton("Okay!", indent)
+	--
 	close[1].AnchorPoint = Vector2.new(0.5, 0)
 	close[1].Size = UDim2.new(0.5, 0, 0, 20)
 	close[1].Position = UDim2.new(0.5, 0, 0, buttonStartY)
+	--
 	ok[1].AnchorPoint = Vector2.new(0.5, 0)
 	ok[1].Size = UDim2.new(0.5, 0, 0, 20)
 	ok[1].Position = UDim2.new(0.5, 0, 0, buttonStartY + 22)
+	--
 	close[3].MouseButton1Down:Connect(function()
 		close[2].BorderColor3 = Color3.fromRGB(168, 52, 235)
 		outline:TweenPosition(UDim2.new(-1.5, 0, 0.5, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.75, true)
@@ -941,6 +805,7 @@ function comet:loader(props)
 		wait(0.7)
 		screen:Remove()
 	end)
+	--
 	ok[3].MouseButton1Down:Connect(function()
 		ok[2].BorderColor3 = Color3.fromRGB(168, 52, 235)
 		outline:TweenPosition(UDim2.new(1.5, 0, 0.5, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.75, true)
@@ -950,6 +815,7 @@ function comet:loader(props)
 		wait(0.7)
 		screen:Remove()
 	end)
+	--
 	loader = {
 		["outline"] = outline,
 		["outline2"] = outline2,
@@ -957,21 +823,25 @@ function comet:loader(props)
 		["title"] = title,
 		["scripttitle"] = scripttitle
 	}
+	--
 	setmetatable(loader, loaders)
 	return loader
 end
 
+--
 function loaders:toggle()
 	self.outline.Visible = true
 end
-
+--
 function watermarks:toggle(bool)
 	local watermark = self
+	--
 	watermark.outline.Visible = bool
 end
-
+--
 function comet:saveconfig()
 	local cfg = {}
+	--
 	for i,v in pairs(self.pointers) do
 		cfg[i] = {}
 		for c,d in pairs(v) do
@@ -985,9 +855,10 @@ function comet:saveconfig()
 			end
 		end
 	end
+	--
 	return hs:JSONEncode(cfg)
 end
-
+--
 function comet:loadconfig(cfg)
 	local cfg = hs:JSONDecode(readfile(cfg))
 	for i,v in pairs(cfg) do
@@ -1002,12 +873,14 @@ function comet:loadconfig(cfg)
 		end
 	end
 end
-
+--
 function comet:settheme(theme,color)
 	local window = self
+	--
 	if window.theme[theme] then
 		window.theme[theme] = color
 	end
+	--
 	if window.themeitems[theme] then
 		for i,v in pairs(window.themeitems[theme]) do
 			for z,x in pairs(v) do
@@ -1016,14 +889,14 @@ function comet:settheme(theme,color)
 		end
 	end
 end
-
+--
 function comet:setkey(key)
 	if typeof(key) == "EnumItem" then
 		local window = self
 		window.key = key
 	end
 end
-
+--
 function comet:settoggle(side,bool)
 	if side == "x" then
 		self.x = bool
@@ -1031,7 +904,7 @@ function comet:settoggle(side,bool)
 		self.y = bool
 	end
 end
-
+--
 function comet:setfont(font)
 	if font ~= nil then
 		local window = self
@@ -1042,7 +915,7 @@ function comet:setfont(font)
 		end
 	end
 end
-
+--
 function comet:settextsize(size)
 	if size ~= nil then
 		local window = self
@@ -1053,49 +926,38 @@ function comet:settextsize(size)
 		end
 	end
 end
-
+--
 function comet:page(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local page = {}
+	-- // main
 	local tabbutton = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,75,1,0),
 			Parent = self.tabsbuttons
 		}
 	)
-	applyRounding(tabbutton, rounding)
-	applyBorders(tabbutton, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = tabbutton
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -1107,19 +969,44 @@ function comet:page(props)
 			Parent = tabbutton
 		}
 	)
-	local indicatorBar = utility.new(
+	--
+	local r_line = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = self.theme.accent,
+			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
 			BorderSizePixel = 0,
-			Size = UDim2.new(1,0,0,3),
-			Position = UDim2.new(0,0,1,-3),
-			ZIndex = 3,
+			Size = UDim2.new(0,1,0,1),
+			Position = UDim2.new(1,0,1,1),
+			ZIndex = 2,
 			Parent = outline
 		}
 	)
-	indicatorBar.Visible = false
-	table.insert(self.themeitems["accent"]["BackgroundColor3"],indicatorBar)
+	--
+	local l_line = utility.new(
+		"Frame",
+		{
+			AnchorPoint = Vector2.new(1,0),
+			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
+			BorderSizePixel = 0,
+			Size = UDim2.new(0,1,0,1),
+			Position = UDim2.new(0,0,1,1),
+			ZIndex = 2,
+			Parent = outline
+		}
+	)
+	--
+	local line = utility.new(
+		"Frame",
+		{
+			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1,0,0,2),
+			Position = UDim2.new(0,0,1,0),
+			ZIndex = 2,
+			Parent = outline
+		}
+	)
+	--
 	local label = utility.new(
 		"TextLabel",
 		{
@@ -1128,14 +1015,13 @@ function comet:page(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.textsize,
 			TextStrokeTransparency = 0,
 			Parent = outline
 		}
 	)
+	--
 	local pageholder = utility.new(
 		"Frame",
 		{
@@ -1147,13 +1033,13 @@ function comet:page(props)
 			Parent = self.tabs
 		}
 	)
-	applyRounding(pageholder, rounding)
+	--
 	local left = utility.new(
 		"ScrollingFrame",
 		{
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(self.layout.SectionWidthLeft,-5,1,0),
+			Size = UDim2.new(0.5,-5,1,0),
 			Position = UDim2.new(0,0,0,0),
 			AutomaticCanvasSize = "Y",
 			CanvasSize = UDim2.new(0,0,0,0),
@@ -1166,21 +1052,23 @@ function comet:page(props)
 			Parent = pageholder
 		}
 	)
+	--
 	utility.new(
 		"UIListLayout",
 		{
 			FillDirection = "Vertical",
-			Padding = UDim.new(0,self.layout.SectionGap),
+			Padding = UDim.new(0,10),
 			Parent = left
 		}
 	)
+	--
 	local right = utility.new(
 		"ScrollingFrame",
 		{
 			AnchorPoint = Vector2.new(1,0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(self.layout.SectionWidthRight,-5,1,0),
+			Size = UDim2.new(0.5,-5,1,0),
 			Position = UDim2.new(1,0,0,0),
 			AutomaticCanvasSize = "Y",
 			CanvasSize = UDim2.new(0,0,0,0),
@@ -1193,70 +1081,31 @@ function comet:page(props)
 			Parent = pageholder
 		}
 	)
+	--
 	utility.new(
 		"UIListLayout",
 		{
 			FillDirection = "Vertical",
-			Padding = UDim.new(0,self.layout.SectionGap),
+			Padding = UDim.new(0,10),
 			Parent = right
 		}
 	)
-	local full = utility.new(
-		"ScrollingFrame",
-		{
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			Size = UDim2.new(1,0,1,0),
-			Position = UDim2.new(0,0,0,0),
-			AutomaticCanvasSize = "Y",
-			CanvasSize = UDim2.new(0,0,0,0),
-			ScrollBarImageTransparency = 0.25,
-			ScrollBarImageColor3 = Color3.fromRGB(0,0,0),
-			ScrollBarThickness = 5,
-			ClipsDescendants = true,
-			VerticalScrollBarInset = "ScrollBar",
-			VerticalScrollBarPosition = "Right",
-			Visible = false,
-			Parent = pageholder
-		}
-	)
-	utility.new(
-		"UIListLayout",
-		{
-			FillDirection = "Vertical",
-			Padding = UDim.new(0,self.layout.SectionGap),
-			Parent = full
-		}
-	)
-	local bottomConnect = utility.new(
-		"Frame",
-		{
-			BackgroundColor3 = self.theme.accent,
-			BorderSizePixel = 0,
-			Size = UDim2.new(1,0,0,3),
-			Position = UDim2.new(0,0,0,0),
-			ZIndex = 3,
-			Parent = self.tabs
-		}
-	)
-	bottomConnect.Visible = false
-	table.insert(self.themeitems["accent"]["BackgroundColor3"],bottomConnect)
+	-- // page tbl
 	page = {
 		["comet"] = self,
 		["outline"] = outline,
+		["r_line"] = r_line,
+		["l_line"] = l_line,
+		["line"] = line,
 		["page"] = pageholder,
 		["left"] = left,
 		["right"] = right,
-		["full"] = full,
 		["open"] = false,
-		["pointers"] = {},
-		["indicator"] = indicatorBar,
-		["connector"] = bottomConnect,
-		["rounding"] = rounding,
-		["borders"] = borderCfg,
-		["tabbutton"] = tabbutton
+		["pointers"] = {}
 	}
+	--
 	table.insert(self.pages,page)
+	--
 	button.MouseButton1Down:Connect(function()
 		if page.open == false then
 			for i,v in pairs(self.pages) do
@@ -1264,73 +1113,60 @@ function comet:page(props)
 					if v.open then
 						v.page.Visible = false
 						v.open = false
-						v.indicator.Visible = false
-						v.connector.Visible = false
 						v.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+						v.line.Size = UDim2.new(1,0,0,2)
+						v.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 					end
 				end
 			end
+			--
 			self:closewindows()
+			--
 			page.page.Visible = true
 			page.open = true
 			page.outline.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-			page.indicator.Visible = true
-			page.connector.Visible = true
-			local abs = tabbutton.AbsolutePosition
-			local size = tabbutton.AbsoluteSize
-			local parentAbs = self.tabs.AbsolutePosition
-			local xPos = abs.X - parentAbs.X
-			page.connector.Position = UDim2.new(0,xPos,0,0)
-			page.connector.Size = UDim2.new(0,size.X,0,3)
+			page.line.Size = UDim2.new(1,0,0,3)
+			page.line.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 		end
 	end)
-	rs.RenderStepped:Connect(function()
-		if page.open and page.tabbutton.Parent and self.tabs then
-			local abs = page.tabbutton.AbsolutePosition
-			local size = page.tabbutton.AbsoluteSize
-			local parentAbs = self.tabs.AbsolutePosition
-			local xPos = abs.X - parentAbs.X
-			page.connector.Position = UDim2.new(0,xPos,0,0)
-			page.connector.Size = UDim2.new(0,size.X,0,3)
-		end
-	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		self.pointers[tostring(pointer)] = page.pointers
 	end
+	--
 	self.labels[#self.labels+1] = label
+	-- // metatable indexing + return
 	setmetatable(page, pages)
 	return page
 end
-
+--
 function pages:openpage()
 	local page = self
+	--
 	if page.open == false then
 		for i,v in pairs(page.comet.pages) do
 			if v ~= page then
 				if v.open then
 					v.page.Visible = false
 					v.open = false
-					v.indicator.Visible = false
-					v.connector.Visible = false
 					v.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+					v.line.Size = UDim2.new(1,0,0,2)
+					v.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 				end
 			end
 		end
+		--
 		page.page.Visible = true
 		page.open = true
 		page.outline.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-		page.indicator.Visible = true
-		page.connector.Visible = true
-		local abs = page.tabbutton.AbsolutePosition
-		local size = page.tabbutton.AbsoluteSize
-		local parentAbs = page.comet.tabs.AbsolutePosition
-		local xPos = abs.X - parentAbs.X
-		page.connector.Position = UDim2.new(0,xPos,0,0)
-		page.connector.Size = UDim2.new(0,size.X,0,3)
+		page.line.Size = UDim2.new(1,0,0,3)
+		page.line.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	end
 end
-
+--
+--
 function pages:remove()
 	local page = self
 	for i, v in pairs(page.comet.pages) do
@@ -1347,56 +1183,40 @@ function pages:remove()
 		page.comet.pages[1]:openpage()
 	end
 end
-
+--
 function pages:section(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
-	local side = (props.side or props.Side or props.sectionside or props.Sectionside or props.SectionSide or props.sectionSide or "left"):lower()
+	local side = props.side or props.Side or props.sectionside or props.Sectionside or props.SectionSide or props.sectionSide or "left"
 	local size = props.size or props.Size or props.yaxis or props.yAxis or props.YAxis or props.Yaxis or 200
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	side = side:lower()
+	-- // variables
 	local section = {}
-	local parentFrame = (side == "right" and self.right) or (side == "both" and self.full) or self.left
-	if side == "both" then
-		self.left.Visible = false
-		self.right.Visible = false
-		self.full.Visible = true
-	end
+	-- // main
 	local sectionholder = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,size),
-			Parent = parentFrame
+			Parent = self[side]
 		}
 	)
-	applyRounding(sectionholder, rounding)
-	applyBorders(sectionholder, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = sectionholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -1408,7 +1228,9 @@ function pages:section(props)
 			Parent = outline
 		}
 	)
+	--
 	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],color)
+	--
 	local content = utility.new(
 		"Frame",
 		{
@@ -1420,6 +1242,7 @@ function pages:section(props)
 			Parent = outline
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -1428,8 +1251,6 @@ function pages:section(props)
 			Position = UDim2.new(0,5,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -1437,6 +1258,7 @@ function pages:section(props)
 			Parent = outline
 		}
 	)
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -1445,76 +1267,62 @@ function pages:section(props)
 			Parent = content
 		}
 	)
+	-- // section tbl
 	section = {
 		["comet"] = self.comet,
 		["sectionholder"] = sectionholder,
 		["color"] = color,
 		["content"] = content,
-		["pointers"] = {},
-		["rounding"] = rounding,
-		["borders"] = borderCfg
+		["pointers"] = {}
 	}
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = section.pointers
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
+	-- // metatable indexing + return
 	setmetatable(section, sections)
 	return section
 end
-
+--
 function pages:multisection(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
-	local side = (props.side or props.Side or props.sectionside or props.Sectionside or props.SectionSide or props.sectionSide or "left"):lower()
+	local side = props.side or props.Side or props.sectionside or props.Sectionside or props.SectionSide or props.sectionSide or "left"
 	local size = props.size or props.Size or props.yaxis or props.yAxis or props.YAxis or props.Yaxis or 200
-	local notitle = props.notitle == true
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
-	local parentFrame = (side == "right" and self.right) or (side == "both" and self.full) or self.left
-	if side == "both" then
-		self.left.Visible = false
-		self.right.Visible = false
-		self.full.Visible = true
-	end
+	side = side:lower()
+	-- // variables
 	local multisection = {}
+	-- // main
 	local sectionholder = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,size),
-			Parent = parentFrame
+			Parent = self[side]
 		}
 	)
-	applyRounding(sectionholder, rounding)
-	applyBorders(sectionholder, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = sectionholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -1526,39 +1334,37 @@ function pages:multisection(props)
 			Parent = outline
 		}
 	)
+	--
 	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],color)
+	--
 	local tabsholder = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0,1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1,0,1,-(notitle and 5 or 15)),
+			Size = UDim2.new(1,0,1,-15),
 			Position = UDim2.new(0,0,1,0),
 			Parent = outline
 		}
 	)
-	local title
-	if not notitle then
-		title = utility.new(
-			"TextLabel",
-			{
-				BackgroundTransparency = 1,
-				Size = UDim2.new(1,-5,0,20),
-				Position = UDim2.new(0,5,0,0),
-				Font = self.comet.font,
-				Text = name,
-				RichText = true,
-				TextWrapped=true,
-				TextColor3 = Color3.fromRGB(255,255,255),
-				TextSize = self.comet.textsize,
-				TextStrokeTransparency = 0,
-				TextXAlignment = "Left",
-				Parent = outline
-			}
-		)
-		self.comet.labels[#self.comet.labels+1] = title
-	end
+	--
+	local title = utility.new(
+		"TextLabel",
+		{
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1,-5,0,20),
+			Position = UDim2.new(0,5,0,0),
+			Font = self.comet.font,
+			Text = name,
+			TextColor3 = Color3.fromRGB(255,255,255),
+			TextSize = self.comet.textsize,
+			TextStrokeTransparency = 0,
+			TextXAlignment = "Left",
+			Parent = outline
+		}
+	)
+	--
 	local buttons = utility.new(
 		"Frame",
 		{
@@ -1570,26 +1376,21 @@ function pages:multisection(props)
 			Parent = tabsholder
 		}
 	)
+	--
 	local tabs = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			Size = UDim2.new(1,-6,1,-(notitle and 7 or 27)),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
+			Size = UDim2.new(1,-6,1,-27),
 			Position = UDim2.new(0.5,0,1,-3),
 			Parent = tabsholder
 		}
 	)
-	applyRounding(tabs, rounding)
-	applyBorders(tabs, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -1598,26 +1399,21 @@ function pages:multisection(props)
 			Parent = buttons
 		}
 	)
+	--
 	local tabs_outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = tabs
 		}
 	)
-	applyRounding(tabs_outline, rounding)
-	applyBorders(tabs_outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	-- // section tbl
 	multisection = {
 		["comet"] = self.comet,
 		["sectionholder"] = sectionholder,
@@ -1627,63 +1423,53 @@ function pages:multisection(props)
 		["buttons"] = buttons,
 		["tabs"] = tabs,
 		["tabs_outline"] = tabs_outline,
-		["pointers"] = {},
-		["rounding"] = rounding,
-		["borders"] = borderCfg,
-		["notitle"] = notitle
+		["pointers"] = {}
 	}
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = multisection.pointers
 		end
 	end
+	--
+	self.comet.labels[#self.comet.labels+1] = title
+	-- // metatable indexing + return
 	setmetatable(multisection,multisections)
 	return multisection
 end
-
+--
 function multisections:section(props)
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local mssection = {}
+	-- // main
 	local tabbutton = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,60,0,20),
 			Parent = self.buttons
 		}
 	)
-	applyRounding(tabbutton, rounding)
-	applyBorders(tabbutton, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = tabbutton
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -1695,6 +1481,32 @@ function multisections:section(props)
 			Parent = tabbutton
 		}
 	)
+	--
+	local r_line = utility.new(
+		"Frame",
+		{
+			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
+			BorderSizePixel = 0,
+			Size = UDim2.new(0,1,0,1),
+			Position = UDim2.new(1,0,1,1),
+			ZIndex = 2,
+			Parent = outline
+		}
+	)
+	--
+	local l_line = utility.new(
+		"Frame",
+		{
+			AnchorPoint = Vector2.new(1,0),
+			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
+			BorderSizePixel = 0,
+			Size = UDim2.new(0,1,0,1),
+			Position = UDim2.new(0,0,1,1),
+			ZIndex = 2,
+			Parent = outline
+		}
+	)
+	--
 	local line = utility.new(
 		"Frame",
 		{
@@ -1706,6 +1518,7 @@ function multisections:section(props)
 			Parent = outline
 		}
 	)
+	--
 	local label = utility.new(
 		"TextLabel",
 		{
@@ -1714,15 +1527,16 @@ function multisections:section(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
 			Parent = outline
 		}
 	)
+	--
+	-- Check if this is the first section
 	local isFirst = #self.mssections == 0
+	--
 	local content = utility.new(
 		"Frame",
 		{
@@ -1735,6 +1549,7 @@ function multisections:section(props)
 			Parent = self.tabs_outline
 		}
 	)
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -1743,22 +1558,27 @@ function multisections:section(props)
 			Parent = content
 		}
 	)
+	-- // mssection tbl
 	mssection = {
 		["comet"] = self.comet,
 		["outline"] = outline,
+		["r_line"] = r_line,
+		["l_line"] = l_line,
 		["line"] = line,
 		["content"] = content,
 		["open"] = isFirst,
-		["pointers"] = {},
-		["rounding"] = rounding,
-		["borders"] = borderCfg
+		["pointers"] = {}
 	}
+	--
 	table.insert(self.mssections,mssection)
+	--
+	-- If this is the first section, set it as active
 	if isFirst then
 		mssection.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 		mssection.line.Size = UDim2.new(1,0,0,3)
 		mssection.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 	end
+	--
 	button.MouseButton1Down:Connect(function()
 		if mssection.open == false then
 			for i,v in pairs(self.mssections) do
@@ -1772,7 +1592,9 @@ function multisections:section(props)
 					end
 				end
 			end
+			--
 			mssection.comet:closewindows()
+			--
 			mssection.content.Visible = true
 			mssection.open = true
 			mssection.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
@@ -1780,25 +1602,29 @@ function multisections:section(props)
 			mssection.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = mssection.pointers
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = label
+	-- // metatable indexing + return
 	setmetatable(mssection,mssections)
 	return mssection
 end
-
+--
 function sections:toggle(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or props.toggle or props.Toggle or props.toggled or props.Toggled or false
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local requires = props.requires or {}
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local toggle = {}
+	-- // main
 	local toggleholder = utility.new(
 		"Frame",
 		{
@@ -1807,24 +1633,19 @@ function sections:toggle(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,15,0,15),
 			Parent = toggleholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -1836,6 +1657,7 @@ function sections:toggle(props)
 			Parent = toggleholder
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -1844,8 +1666,6 @@ function sections:toggle(props)
 			Position = UDim2.new(0,20,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -1853,31 +1673,27 @@ function sections:toggle(props)
 			Parent = toggleholder
 		}
 	)
+	--
 	local col = Color3.fromRGB(20, 20, 20)
 	if def then
 		col = self.comet.theme.accent
 	end
+	--
 	local color = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = col,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = outline
 		}
 	)
-	applyRounding(color, rounding)
-	applyBorders(color, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
 	if def then
 		table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],color)
 	end
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -1886,175 +1702,50 @@ function sections:toggle(props)
 			Parent = color
 		}
 	)
-	local dependent = requires and #requires>0
-	local subHolder
-	local subOutline
-	local subColor
-	local subButton
-	local subTitle
-	if dependent then
-		subHolder = utility.new("Frame",{
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1,-10,0,13),
-			Position = UDim2.new(0,10,0,16),
-			Parent = self.content
-		})
-		subOutline = utility.new("Frame",{
-			BackgroundColor3 = Color3.fromRGB(24,24,24),
-			Size = UDim2.new(0,13,0,13),
-			Parent = subHolder
-		})
-		applyRounding(subOutline, rounding)
-		applyBorders(subOutline, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(12,12,12),
-			Thickness = borderCfg.borderThickness
-		})
-		subColor = utility.new("Frame",{
-			BackgroundColor3 = Color3.fromRGB(20,20,20),
-			Size = UDim2.new(1,0,1,0),
-			Parent = subOutline
-		})
-		applyRounding(subColor, rounding)
-		applyBorders(subColor, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(56,56,56),
-			Thickness = borderCfg.borderThickness
-		})
-		utility.new("UIGradient",{
-			Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199,191,204)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255,255,255))},
-			Rotation = 90,
-			Parent = subColor
-		})
-		subButton = utility.new("TextButton",{
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,1,0),
-			Text = "",
-			Parent = subHolder
-		})
-		subTitle = utility.new("TextLabel",{
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1,-18,1,0),
-			Position = UDim2.new(0,18,0,0),
-			Font = self.comet.font,
-			Text = (props.subtitle or props.Subtitle or (name.." Option")),
-			RichText = true,
-			TextWrapped = true,
-			TextColor3 = Color3.fromRGB(210,210,210),
-			TextSize = self.comet.textsize-1,
-			TextStrokeTransparency = 0,
-			TextXAlignment = "Left",
-			Parent = subHolder
-		})
-		self.comet.labels[#self.comet.labels+1] = subTitle
-	end
+	-- // toggle tbl
 	toggle = {
 		["comet"] = self.comet,
 		["toggleholder"] = toggleholder,
 		["title"] = title,
 		["color"] = color,
 		["callback"] = callback,
-		["current"] = def,
-		["requires"] = requires,
-		["isDependent"] = false,
-		["sub"] = {
-			holder = subHolder, outline = subOutline, color = subColor, button = subButton, title = subTitle, current = false
-		},
-		["rounding"] = rounding,
-		["borders"] = borderCfg
+		["current"] = def
 	}
-	local function parentRequiredOn()
-		for _,key in ipairs(requires) do
-			local found = nil
-			for __,ptrtbl in pairs(self.pointers) do
-				if ptrtbl[key] then
-					found = ptrtbl[key]
-					break
-				end
-			end
-			if not found then
-				for __,pg in pairs(self.comet.pages) do
-					if pg.pointers and pg.pointers[key] then found = pg.pointers[key] break end
-				end
-			end
-			if not found then return false end
-			if found.current == false then return false end
-		end
-		return true
-	end
-	local function setColorActive(frame, isActive)
-		if isActive then
-			frame.BackgroundColor3 = self.comet.theme.accent
-			table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],frame)
-		else
-			frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-			local find = table.find(self.comet.themeitems["accent"]["BackgroundColor3"],frame)
-			if find then table.remove(self.comet.themeitems["accent"]["BackgroundColor3"],find) end
-		end
-	end
-	local function tryToggle(main, desired)
-		if #requires>0 and desired then
-			if not parentRequiredOn() then
-				setColorActive(main and toggle.color or toggle.sub.color, false)
-				if main then toggle.current = false else toggle.sub.current = false end
-				return
-			end
-		end
-		if main then
-			toggle.current = desired
-			toggle.callback(desired)
-		else
-			toggle.sub.current = desired
-			toggle.callback(desired, true)
-		end
-		setColorActive(main and toggle.color or toggle.sub.color, desired)
-	end
+	--
 	button.MouseButton1Down:Connect(function()
-		tryToggle(true, not toggle.current)
+		if toggle.current then
+			toggle.callback(false)
+			toggle.color.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+			local find = table.find(self.comet.themeitems["accent"]["BackgroundColor3"],toggle.color)
+			if find then
+				table.remove(self.comet.themeitems["accent"]["BackgroundColor3"],find)
+			end
+			toggle.current = false
+		else
+			toggle.callback(true)
+			toggle.color.BackgroundColor3 = self.comet.theme.accent
+			table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],toggle.color)
+			toggle.current = true
+		end
 	end)
-	if dependent and subButton then
-		subButton.MouseButton1Down:Connect(function()
-			tryToggle(false, not toggle.sub.current)
-		end)
-	end
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = toggle
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
+	-- // metatable indexing + return
 	setmetatable(toggle, toggles)
 	return toggle
 end
-
+--
 function toggles:set(bool)
 	if bool ~= nil then
 		local toggle = self
-		if #toggle.requires>0 and bool then
-			local ok = true
-			local function check()
-				for _,key in ipairs(toggle.requires) do
-					local found = nil
-					for __,ptrtbl in pairs(toggle.comet.pointers) do
-						if ptrtbl[key] then found = ptrtbl[key] break end
-					end
-					if not found then return false end
-					if found.current == false then return false end
-				end
-				return true
-			end
-			ok = check()
-			if not ok then bool = false end
-		end
 		toggle.callback(bool)
 		toggle.current = bool
 		if bool then
@@ -2069,13 +1760,14 @@ function toggles:set(bool)
 		end
 	end
 end
-
+--
 function sections:button(props)
+	-- // properties
 	local name = props.name or props.Name or "new button"
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local button = {}
+	-- // main
 	local buttonholder = utility.new(
 		"Frame",
 		{
@@ -2084,42 +1776,31 @@ function sections:button(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = buttonholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -2129,7 +1810,8 @@ function sections:button(props)
 			Parent = outline2
 		}
 	)
-	utility.new(
+	--
+	local gradient = utility.new(
 		"UIGradient",
 		{
 			Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199, 191, 204)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))},
@@ -2137,6 +1819,7 @@ function sections:button(props)
 			Parent = color
 		}
 	)
+	--
 	local buttonpress = utility.new(
 		"TextButton",
 		{
@@ -2145,7 +1828,6 @@ function sections:button(props)
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Text = name,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2153,6 +1835,7 @@ function sections:button(props)
 			Parent = buttonholder
 		}
 	)
+	--
 	buttonpress.MouseButton1Down:Connect(function()
 		callback()
 		outline.BorderColor3 = self.comet.theme.accent
@@ -2164,27 +1847,31 @@ function sections:button(props)
 			table.remove(self.comet.themeitems["accent"]["BorderColor3"],find)
 		end
 	end)
+	-- // button tbl
 	button = {
 		["comet"] = self.comet
 	}
+	--
 	self.comet.labels[#self.comet.labels+1] = buttonpress
+	-- // metatable indexing + return
 	setmetatable(button, buttons)
 	return button
 end
-
+--
 function sections:slider(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or 0
 	local max = props.max or props.Max or props.maximum or props.Maximum or 100
 	local min = props.min or props.Min or props.minimum or props.Minimum or 0
-	local roundingNum = props.roundingnum or props.Roundingnum or props.decimals or props.Decimals or false
+	local rounding = props.rounding or props.Rounding or props.round or props.Round or props.decimals or props.Decimals or false
 	local ticking = props.tick or props.Tick or props.ticking or props.Ticking or false
 	local measurement = props.measurement or props.Measurement or props.digit or props.Digit or props.calc or props.Calc or ""
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
 	def = math.clamp(def,min,max)
+	-- // variables
 	local slider = {}
+	-- // main
 	local sliderholder = utility.new(
 		"Frame",
 		{
@@ -2193,33 +1880,32 @@ function sections:slider(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,12),
 			Position = UDim2.new(0,0,0,15),
 			Parent = sliderholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = outline
 		}
-	)
+	)	
+	--
 	local value = utility.new(
 		"TextLabel",
 		{
@@ -2228,8 +1914,6 @@ function sections:slider(props)
 			Position = UDim2.new(0,0,0.5,0),
 			Font = self.comet.font,
 			Text = def..measurement.."/"..max..measurement,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2237,6 +1921,7 @@ function sections:slider(props)
 			Parent = outline
 		}
 	)
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -2246,6 +1931,7 @@ function sections:slider(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -2254,6 +1940,7 @@ function sections:slider(props)
 			Parent = color
 		}
 	)
+	--
 	local slide = utility.new(
 		"Frame",
 		{
@@ -2265,6 +1952,7 @@ function sections:slider(props)
 		}
 	)
 	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],slide)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -2273,6 +1961,7 @@ function sections:slider(props)
 			Parent = slide
 		}
 	)
+	--
 	local sliderbutton = utility.new(
 		"TextButton",
 		{
@@ -2284,6 +1973,7 @@ function sections:slider(props)
 			Parent = sliderholder
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -2292,8 +1982,6 @@ function sections:slider(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2301,6 +1989,7 @@ function sections:slider(props)
 			Parent = sliderholder
 		}
 	)
+	-- // slider tbl
 	slider = {
 		["comet"] = self.comet,
 		["outline"] = outline,
@@ -2314,13 +2003,14 @@ function sections:slider(props)
 		["current"] = def,
 		["measurement"] = measurement,
 		["tick"] = ticking,
-		["roundingnum"] = roundingNum,
+		["rounding"] = rounding,
 		["callback"] = callback
 	}
-	local function slidefn()
+	--
+	local function slide()
 		local size = math.clamp(plr:GetMouse().X - slider.color.AbsolutePosition.X ,0 ,slider.color.AbsoluteSize.X)
 		local result = (slider.max - slider.min) / slider.color.AbsoluteSize.X * size + slider.min
-		if slider.roundingnum then
+		if slider.rounding then
 			local newres = math.floor(result)
 			value.Text = newres..slider.measurement.."/"..slider.max..slider.measurement
 			slider.current = newres
@@ -2342,17 +2032,20 @@ function sections:slider(props)
 			end
 		end
 	end
+	--
 	sliderbutton.MouseButton1Down:Connect(function()
 		slider.holding = true
-		slidefn()
+		slide()
 		table.insert(self.comet.themeitems["accent"]["BorderColor3"],outline)
 		outline.BorderColor3 = self.comet.theme.accent
 	end)
+	--
 	uis.InputChanged:Connect(function()
 		if slider.holding then
-			slidefn()
+			slide()
 		end
 	end)
+	--
 	uis.InputEnded:Connect(function(Input)
 		if Input.UserInputType.Name == 'MouseButton1' and slider.holding then
 			slider.holding = false
@@ -2363,22 +2056,26 @@ function sections:slider(props)
 			end
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = slider
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
 	self.comet.labels[#self.comet.labels+1] = value
+	-- // metatable indexing + return
 	setmetatable(slider, sliders)
 	return slider
 end
-
+--
 function sliders:set(value)
 	local size = math.clamp((self.color.AbsoluteSize.X / (self.max - self.min) * (value - self.min)) ,0 ,self.color.AbsoluteSize.X)
 	local result = value
-	if self.roundingnum then
+	if self.rounding then
 		local newres = math.floor(result)
 		self.value.Text = newres..self.measurement.."/"..self.max..self.measurement
 		self.current = newres
@@ -2400,11 +2097,12 @@ function sliders:set(value)
 		end
 	end
 end
-
+--
 function comet:closewindows(ignore)
 	local window = self
+	--
 	for i,v in pairs(window.dropdowns) do
-	if v ~= ignore then
+		if v ~= ignore then
 			if v.open then
 				v.optionsholder.Visible = false
 				v.indicator.Text = "-"
@@ -2412,6 +2110,7 @@ function comet:closewindows(ignore)
 			end
 		end
 	end
+	--
 	for i,v in pairs(window.multiboxes) do
 		if v ~= ignore then
 			if v.open then
@@ -2421,6 +2120,7 @@ function comet:closewindows(ignore)
 			end
 		end
 	end
+	--
 	for i,v in pairs(window.buttonboxs) do
 		if v ~= ignore then
 			if v.open then
@@ -2430,6 +2130,7 @@ function comet:closewindows(ignore)
 			end
 		end
 	end
+	--
 	for i,v in pairs(window.colorpickers) do
 		if v ~= ignore then
 			if v.open then
@@ -2439,16 +2140,17 @@ function comet:closewindows(ignore)
 		end
 	end
 end
-
+--
 function sections:dropdown(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or ""
 	local max = props.max or props.Max or props.maximum or props.Maximum or 4
 	local options = props.options or props.Options or props.Settings or props.settings or {}
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local dropdown = {}
+	-- // main
 	local dropdownholder = utility.new(
 		"Frame",
 		{
@@ -2458,44 +2160,33 @@ function sections:dropdown(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,15),
 			Parent = dropdownholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -2506,6 +2197,7 @@ function sections:dropdown(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -2514,6 +2206,7 @@ function sections:dropdown(props)
 			Parent = color
 		}
 	)
+	--
 	local value = utility.new(
 		"TextLabel",
 		{
@@ -2523,8 +2216,6 @@ function sections:dropdown(props)
 			Position = UDim2.new(0,5,0,0),
 			Font = self.comet.font,
 			Text = def,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2533,6 +2224,7 @@ function sections:dropdown(props)
 			Parent = outline
 		}
 	)
+	--
 	local indicator = utility.new(
 		"TextLabel",
 		{
@@ -2542,8 +2234,6 @@ function sections:dropdown(props)
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.comet.font,
 			Text = "+",
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2552,6 +2242,7 @@ function sections:dropdown(props)
 			Parent = outline
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -2560,8 +2251,6 @@ function sections:dropdown(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2569,6 +2258,7 @@ function sections:dropdown(props)
 			Parent = dropdownholder
 		}
 	)
+	--
 	local dropdownbutton = utility.new(
 		"TextButton",
 		{
@@ -2580,23 +2270,32 @@ function sections:dropdown(props)
 			Parent = dropdownholder
 		}
 	)
+	--
 	local optionsholder = utility.new(
 		"Frame",
 		{
 			BackgroundTransparency = 1,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,34),
 			Visible = false,
 			Parent = dropdownholder
 		}
 	)
+	--
 	local size = #options
+	--
 	size = math.clamp(size,1,max)
+	--
 	local optionsoutline = utility.new(
 		"ScrollingFrame",
 		{
 			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
-			BorderSizePixel = 0,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,size,2),
 			Position = UDim2.new(0,0,0,0),
 			ClipsDescendants = true,
@@ -2610,15 +2309,7 @@ function sections:dropdown(props)
 			Parent = optionsholder
 		}
 	)
-	applyBorders(optionsoutline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -2626,6 +2317,7 @@ function sections:dropdown(props)
 			Parent = optionsoutline
 		}
 	)
+	-- // dropdown tbl
 	dropdown = {
 		["comet"] = self.comet,
 		["optionsholder"] = optionsholder,
@@ -2638,7 +2330,9 @@ function sections:dropdown(props)
 		["current"] = def,
 		["callback"] = callback
 	}
+	--
 	table.insert(dropdown.comet.dropdowns,dropdown)
+	--
 	for i,v in pairs(options) do
 		local ddoptionbutton = utility.new(
 			"TextButton",
@@ -2651,6 +2345,7 @@ function sections:dropdown(props)
 				Parent = optionsoutline
 			}
 		)
+		--
 		local ddoptiontitle = utility.new(
 			"TextLabel",
 			{
@@ -2660,8 +2355,6 @@ function sections:dropdown(props)
 				Position = UDim2.new(0.5,0,0,0),
 				Font = self.comet.font,
 				Text = v,
-				RichText = true,
-				TextWrapped=true,
 				TextColor3 = Color3.fromRGB(255,255,255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -2671,9 +2364,13 @@ function sections:dropdown(props)
 				Parent = ddoptionbutton
 			}
 		)
+		--
 		self.comet.labels[#self.comet.labels+1] = ddoptiontitle
+		--
 		table.insert(dropdown.titles,ddoptiontitle)
+		--
 		if v == dropdown.current then ddoptiontitle.TextColor3 = self.comet.theme.accent end
+		--
 		ddoptionbutton.MouseButton1Down:Connect(function()
 			optionsholder.Visible = false
 			dropdown.open = false
@@ -2690,6 +2387,7 @@ function sections:dropdown(props)
 			dropdown.callback(v)
 		end)
 	end
+	--
 	dropdownbutton.MouseButton1Down:Connect(function()
 		dropdown.comet:closewindows(dropdown)
 		for i,v in pairs(dropdown.titles) do
@@ -2707,27 +2405,32 @@ function sections:dropdown(props)
 			indicator.Text = "+"
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = dropdown
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
 	self.comet.labels[#self.comet.labels+1] = value
+	-- // metatable indexing + return
 	setmetatable(dropdown, dropdowns)
 	return dropdown
 end
-
+--
 function sections:buttonbox(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or ""
 	local max = props.max or props.Max or props.maximum or props.Maximum or 4
 	local options = props.options or props.Options or props.Settings or props.settings or {}
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local buttonbox = {}
+	-- // main
 	local buttonboxholder = utility.new(
 		"Frame",
 		{
@@ -2737,44 +2440,33 @@ function sections:buttonbox(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,15),
 			Parent = buttonboxholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -2785,6 +2477,7 @@ function sections:buttonbox(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -2793,6 +2486,7 @@ function sections:buttonbox(props)
 			Parent = color
 		}
 	)
+	--
 	local indicator = utility.new(
 		"TextLabel",
 		{
@@ -2802,8 +2496,6 @@ function sections:buttonbox(props)
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.comet.font,
 			Text = "+",
-			TextWrapped=true,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2812,6 +2504,7 @@ function sections:buttonbox(props)
 			Parent = outline
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -2820,8 +2513,6 @@ function sections:buttonbox(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			TextWrapped=true,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -2829,6 +2520,7 @@ function sections:buttonbox(props)
 			Parent = buttonboxholder
 		}
 	)
+	--
 	local buttonboxbutton = utility.new(
 		"TextButton",
 		{
@@ -2840,23 +2532,32 @@ function sections:buttonbox(props)
 			Parent = buttonboxholder
 		}
 	)
+	--
 	local optionsholder = utility.new(
 		"Frame",
 		{
 			BackgroundTransparency = 1,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,34),
 			Visible = false,
 			Parent = buttonboxholder
 		}
 	)
+	--
 	local size = #options
+	--
 	size = math.clamp(size,1,max)
+	--
 	local optionsoutline = utility.new(
 		"ScrollingFrame",
 		{
 			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
-			BorderSizePixel = 0,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,size,2),
 			Position = UDim2.new(0,0,0,0),
 			ClipsDescendants = true,
@@ -2870,15 +2571,7 @@ function sections:buttonbox(props)
 			Parent = optionsholder
 		}
 	)
-	applyBorders(optionsoutline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -2886,6 +2579,7 @@ function sections:buttonbox(props)
 			Parent = optionsoutline
 		}
 	)
+	-- // buttonbox tbl
 	buttonbox = {
 		["comet"] = self.comet,
 		["optionsholder"] = optionsholder,
@@ -2897,7 +2591,9 @@ function sections:buttonbox(props)
 		["current"] = def,
 		["callback"] = callback
 	}
+	--
 	table.insert(buttonbox.comet.buttonboxs,buttonbox)
+	--
 	for i,v in pairs(options) do
 		local bboptionbutton = utility.new(
 			"TextButton",
@@ -2910,6 +2606,7 @@ function sections:buttonbox(props)
 				Parent = optionsoutline
 			}
 		)
+		--
 		local bboptiontitle = utility.new(
 			"TextLabel",
 			{
@@ -2919,8 +2616,6 @@ function sections:buttonbox(props)
 				Position = UDim2.new(0.5,0,0,0),
 				Font = self.comet.font,
 				Text = v,
-				RichText = true,
-				TextWrapped=true,
 				TextColor3 = Color3.fromRGB(255,255,255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -2930,8 +2625,11 @@ function sections:buttonbox(props)
 				Parent = bboptionbutton
 			}
 		)
+		--
 		self.comet.labels[#self.comet.labels+1] = bboptiontitle
+		--
 		table.insert(buttonbox.titles,bboptiontitle)
+		--
 		bboptionbutton.MouseButton1Down:Connect(function()
 			optionsholder.Visible = false
 			buttonbox.open = false
@@ -2940,6 +2638,7 @@ function sections:buttonbox(props)
 			buttonbox.callback(v)
 		end)
 	end
+	--
 	buttonboxbutton.MouseButton1Down:Connect(function()
 		buttonbox.comet:closewindows(buttonbox)
 		optionsholder.Visible = not buttonbox.open
@@ -2950,17 +2649,21 @@ function sections:buttonbox(props)
 			indicator.Text = "+"
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = buttonbox
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
+	-- // metatable indexing + return
 	setmetatable(buttonbox, buttonboxs)
 	return buttonbox
 end
-
+--
 function dropdowns:set(value)
 	if value ~= nil then
 		local dropdown = self
@@ -2978,15 +2681,14 @@ function dropdowns:set(value)
 		end
 	end
 end
-
+--
 function sections:multibox(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or {}
 	local max = props.max or props.Max or props.maximum or props.Maximum or 4
 	local options = props.options or props.Options or props.Settings or props.settings or {}
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
 	local defstr = ""
 	if #def > 1 then
 		for i,v in pairs(def) do
@@ -3001,7 +2703,9 @@ function sections:multibox(props)
 			defstr = defstr..v
 		end
 	end
+	-- // variables
 	local multibox = {}
+	-- // main
 	local multiboxholder = utility.new(
 		"Frame",
 		{
@@ -3011,44 +2715,33 @@ function sections:multibox(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,15),
 			Parent = multiboxholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -3059,6 +2752,7 @@ function sections:multibox(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -3067,6 +2761,7 @@ function sections:multibox(props)
 			Parent = color
 		}
 	)
+	--
 	local value = utility.new(
 		"TextLabel",
 		{
@@ -3076,8 +2771,6 @@ function sections:multibox(props)
 			Position = UDim2.new(0,5,0,0),
 			Font = self.comet.font,
 			Text = defstr,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3086,6 +2779,7 @@ function sections:multibox(props)
 			Parent = outline
 		}
 	)
+	--
 	local indicator = utility.new(
 		"TextLabel",
 		{
@@ -3095,8 +2789,6 @@ function sections:multibox(props)
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.comet.font,
 			Text = "+",
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3105,6 +2797,7 @@ function sections:multibox(props)
 			Parent = outline
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -3113,8 +2806,6 @@ function sections:multibox(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3122,6 +2813,7 @@ function sections:multibox(props)
 			Parent = multiboxholder
 		}
 	)
+	--
 	local dropdownbutton = utility.new(
 		"TextButton",
 		{
@@ -3133,23 +2825,32 @@ function sections:multibox(props)
 			Parent = multiboxholder
 		}
 	)
+	--
 	local optionsholder = utility.new(
 		"Frame",
 		{
 			BackgroundTransparency = 1,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,34),
 			Visible = false,
 			Parent = multiboxholder
 		}
 	)
+	--
 	local size = #options
+	--
 	size = math.clamp(size,1,max)
+	--
 	local optionsoutline = utility.new(
 		"ScrollingFrame",
 		{
 			BackgroundColor3 = Color3.fromRGB(56, 56, 56),
-			BorderSizePixel = 0,
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,size,2),
 			Position = UDim2.new(0,0,0,0),
 			ClipsDescendants = true,
@@ -3163,15 +2864,7 @@ function sections:multibox(props)
 			Parent = optionsholder
 		}
 	)
-	applyBorders(optionsoutline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	utility.new(
 		"UIListLayout",
 		{
@@ -3179,6 +2872,7 @@ function sections:multibox(props)
 			Parent = optionsoutline
 		}
 	)
+	-- // dropdown tbl
 	multibox = {
 		["comet"] = self.comet,
 		["indicator"] = indicator,
@@ -3190,7 +2884,9 @@ function sections:multibox(props)
 		["current"] = def,
 		["callback"] = callback
 	}
+	--
 	table.insert(multibox.comet.multiboxes,multibox)
+	--
 	for i,v in pairs(options) do
 		local ddoptionbutton = utility.new(
 			"TextButton",
@@ -3203,6 +2899,7 @@ function sections:multibox(props)
 				Parent = optionsoutline
 			}
 		)
+		--
 		local ddoptiontitle = utility.new(
 			"TextLabel",
 			{
@@ -3212,8 +2909,6 @@ function sections:multibox(props)
 				Position = UDim2.new(0.5,0,0,0),
 				Font = self.comet.font,
 				Text = v,
-				TextWrapped=true,
-				RichText = true,
 				TextColor3 = Color3.fromRGB(255,255,255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -3223,25 +2918,29 @@ function sections:multibox(props)
 				Parent = ddoptionbutton
 			}
 		)
+		--
 		self.comet.labels[#self.comet.labels+1] = ddoptiontitle
+		--
 		table.insert(multibox.titles,ddoptiontitle)
+		--
 		for c,b in pairs(def) do if v == b then ddoptiontitle.TextColor3 = self.comet.theme.accent end end
+		--
 		ddoptionbutton.MouseButton1Down:Connect(function()
 			local find = table.find(multibox.current,v)
 			if find == nil then
 				table.insert(multibox.current,v)
 				local str = ""
 				if #multibox.current > 1 then
-					for i,vv in pairs(multibox.current) do
+					for i,v in pairs(multibox.current) do
 						if i == #multibox.current then
-							str = str..vv
+							str = str..v
 						else
-							str = str..vv..", "
+							str = str..v..", "
 						end
 					end
 				else
-					for i,vv in pairs(multibox.current) do
-						str = str..vv
+					for i,v in pairs(multibox.current) do
+						str = str..v
 					end
 				end
 				value.Text = str
@@ -3252,16 +2951,16 @@ function sections:multibox(props)
 				table.remove(multibox.current,find)
 				local str = ""
 				if #multibox.current > 1 then
-					for i,vv in pairs(multibox.current) do
+					for i,v in pairs(multibox.current) do
 						if i == #multibox.current then
-							str = str..vv
+							str = str..v
 						else
-							str = str..vv..", "
+							str = str..v..", "
 						end
 					end
 				else
-					for i,vv in pairs(multibox.current) do
-						str = str..vv
+					for i,v in pairs(multibox.current) do
+						str = str..v
 					end
 				end
 				value.Text = str
@@ -3270,6 +2969,7 @@ function sections:multibox(props)
 			end
 		end)
 	end
+	--
 	dropdownbutton.MouseButton1Down:Connect(function()
 		multibox.comet:closewindows(multibox)
 		for i,v in pairs(multibox.titles) do
@@ -3285,18 +2985,22 @@ function sections:multibox(props)
 			indicator.Text = "+"
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = multibox
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = value
 	self.comet.labels[#self.comet.labels+1] = title
+	-- // metatable indexing + return
 	setmetatable(multibox, multiboxs)
 	return multibox
 end
-
+--
 function buttonboxs:set(value)
 	if value ~= nil then
 		local dropdown = self
@@ -3306,7 +3010,7 @@ function buttonboxs:set(value)
 		end
 	end
 end
-
+--
 function multiboxs:set(tbl)
 	if tbl then
 		local multibox = self
@@ -3317,6 +3021,7 @@ function multiboxs:set(tbl)
 					table.insert(multibox.current,v)
 				end
 			end
+			--
 			for i,v in pairs(multibox.titles) do
 				if v.TextColor3 == multibox.comet.theme.accent then
 					v.TextColor3 = Color3.fromRGB(255,255,255)
@@ -3325,6 +3030,7 @@ function multiboxs:set(tbl)
 					v.TextColor3 = multibox.comet.theme.accent
 				end
 			end
+			--
 			local str = ""
 			if #multibox.current > 1 then
 				for i,v in pairs(multibox.current) do
@@ -3339,19 +3045,21 @@ function multiboxs:set(tbl)
 					str = str..v
 				end
 			end
+			--
 			multibox.value.Text = str
 		end
 	end
 end
-
+--
 function sections:textbox(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or ""
 	local placeholder = props.placeholder or props.Placeholder or props.placeHolder or props.PlaceHolder or props.placeholdertext or props.PlaceHolderText or props.PlaceHoldertext or props.placeHolderText or props.placeHoldertext or props.Placeholdertext or props.PlaceholderText or props.placeholderText or ""
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	-- // variables
 	local textbox = {}
+	-- // main
 	local textboxholder = utility.new(
 		"Frame",
 		{
@@ -3361,43 +3069,32 @@ function sections:textbox(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,20),
 			Position = UDim2.new(0,0,0,15),
 			Parent = textboxholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = outline
 		}
 	)
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -3407,6 +3104,7 @@ function sections:textbox(props)
 			Parent = outline2
 		}
 	)
+	--
 	local gradient = utility.new(
 		"UIGradient",
 		{
@@ -3415,6 +3113,7 @@ function sections:textbox(props)
 			Parent = color
 		}
 	)
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -3430,6 +3129,7 @@ function sections:textbox(props)
 			Parent = textboxholder
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -3438,8 +3138,6 @@ function sections:textbox(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3447,6 +3145,7 @@ function sections:textbox(props)
 			Parent = textboxholder
 		}
 	)
+	--
 	local tbox = utility.new(
 		"TextBox",
 		{
@@ -3456,7 +3155,6 @@ function sections:textbox(props)
 			Position = UDim2.new(0.5,0,0,15),
 			PlaceholderText = placeholder,
 			Text = def,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3465,19 +3163,23 @@ function sections:textbox(props)
 			Parent = textboxholder
 		}
 	)
+	-- // textbox tbl
 	textbox = {
 		["comet"] = self.comet,
 		["tbox"] = tbox,
 		["current"] = def,
 		["callback"] = callback
 	}
+	--
 	button.MouseButton1Down:Connect(function()
 		tbox:CaptureFocus()
 	end)
+	--
 	tbox.Focused:Connect(function()
 		outline.BorderColor3 = self.comet.theme.accent
 		table.insert(self.comet.themeitems["accent"]["BorderColor3"],outline)
 	end)
+	--
 	tbox.FocusLost:Connect(function(enterPressed)
 		textbox.current = tbox.Text
 		callback(tbox.Text)
@@ -3487,33 +3189,38 @@ function sections:textbox(props)
 			table.remove(self.comet.themeitems["accent"]["BorderColor3"],find)
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = textbox
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
 	self.comet.labels[#self.comet.labels+1] = tbox
+	-- // metatable indexing + return
 	setmetatable(textbox, textboxs)
 	return textbox
 end
-
+--
 function textboxs:set(value)
 	self.tbox.Text = value
 	self.current = value
 	self.callback(value)
 end
-
+--
 function sections:keybind(props)
+	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or nil
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
 	local allowed = props.allowed or props.Allowed or 1
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	--
 	local default = ".."
 	local typeis = nil
+	--
 	if typeof(def) == "EnumItem" then
 		if def == Enum.UserInputType.MouseButton1 then
 			if allowed == 1 then
@@ -3540,7 +3247,9 @@ function sections:keybind(props)
 			typeis = "KeyCode"
 		end
 	end
+	-- // variables
 	local keybind = {}
+	-- // main
 	local keybindholder = utility.new(
 		"Frame",
 		{
@@ -3549,35 +3258,34 @@ function sections:keybind(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(1,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,40,1,0),
 			Position = UDim2.new(1,0,0,0),
 			Parent = keybindholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Parent = outline
 		}
 	)
+	--
 	local value = utility.new(
 		"TextLabel",
 		{
@@ -3586,8 +3294,6 @@ function sections:keybind(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = default,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3595,7 +3301,9 @@ function sections:keybind(props)
 			Parent = outline
 		}
 	)
+	--
 	outline.Size = UDim2.new(0,value.TextBounds.X+20,1,0)
+	--
 	local color = utility.new(
 		"Frame",
 		{
@@ -3606,6 +3314,7 @@ function sections:keybind(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -3614,6 +3323,7 @@ function sections:keybind(props)
 			Parent = color
 		}
 	)
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -3629,6 +3339,7 @@ function sections:keybind(props)
 			Parent = keybindholder
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -3637,8 +3348,6 @@ function sections:keybind(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3646,6 +3355,7 @@ function sections:keybind(props)
 			Parent = keybindholder
 		}
 	)
+	-- // keybind tbl
 	keybind = {
 		["comet"] = self.comet,
 		["down"] = false,
@@ -3656,6 +3366,7 @@ function sections:keybind(props)
 		["pressed"] = false,
 		["callback"] = callback
 	}
+	--
 	button.MouseButton1Down:Connect(function()
 		if keybind.down == false then
 			outline.BorderColor3 = self.comet.theme.accent
@@ -3664,6 +3375,7 @@ function sections:keybind(props)
 			keybind.down = true
 		end
 	end)
+	--
 	button.MouseButton2Down:Connect(function()
 		keybind.down = false
 		keybind.current = {nil,nil}
@@ -3675,6 +3387,7 @@ function sections:keybind(props)
 		value.Text = ".."
 		outline.Size = UDim2.new(0,value.TextBounds.X+20,1,0)
 	end)
+	--
 	local function turn(typeis,current)
 		outline.Size = UDim2.new(0,value.TextBounds.X+20,1,0)
 		keybind.down = false
@@ -3685,6 +3398,7 @@ function sections:keybind(props)
 			table.remove(self.comet.themeitems["accent"]["BorderColor3"],find)
 		end
 	end
+	--
 	uis.InputBegan:Connect(function(Input)
 		if keybind.down then
 			if Input.UserInputType == Enum.UserInputType.Keyboard then
@@ -3714,18 +3428,22 @@ function sections:keybind(props)
 			end
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = keybind
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
 	self.comet.labels[#self.comet.labels+1] = value
+	-- // metatable indexing + return
 	setmetatable(keybind, keybinds)
 	return keybind
 end
-
+--
 function keybinds:set(key)
 	if key then
 		if typeof(key) == "EnumItem" or typeof(key) == "table" then
@@ -3738,7 +3456,9 @@ function keybinds:set(key)
 			end
 			local keybind = self
 			local typeis = ""
+			--
 			local default = ".."
+			--
 			if key == Enum.UserInputType.MouseButton1 then
 				if keybind.allowed == 1 then
 					default = "MB1"
@@ -3763,10 +3483,12 @@ function keybinds:set(key)
 				end
 				typeis = "KeyCode"
 			end
+			--
 			keybind.value.Text = default
 			keybind.current = {typeis,utility.splitenum(key)}
 			keybind.callback(keybind.current)
 			keybind.outline.Size = UDim2.new(0,keybind.value.TextBounds.X+20,1,0)
+			--
 			if keybind.down then
 				keybind.down = false
 				keybind.outline.BorderColor3 = Color3.fromRGB(12, 12, 12)
@@ -3778,16 +3500,18 @@ function keybinds:set(key)
 		end
 	end
 end
-
+--
 function sections:colorpicker(props)
+	-- // properties
 	local name = props.name or props.Name or "new colorpicker"
 	local cpname = props.cpname or props.Cpname or props.CPname or props.CPName or props.cPname or props.cpName or props.colorpickername or nil
 	local def = props.def or props.Def or props.default or props.Default or Color3.fromRGB(255,255,255)
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	--
 	local h,s,v = def:ToHSV()
+	-- // variables
 	local colorpicker = {}
+	-- // main
 	local colorpickerholder = utility.new(
 		"Frame",
 		{
@@ -3797,34 +3521,33 @@ function sections:colorpicker(props)
 			Parent = self.content
 		}
 	)
+	--
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(1,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,30,1,0),
 			Position = UDim2.new(1,0,0,0),
 			Parent = colorpickerholder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Parent = outline
 		}
 	)
+	--
 	local cpcolor = utility.new(
 		"Frame",
 		{
@@ -3834,6 +3557,7 @@ function sections:colorpicker(props)
 			Parent = outline2
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -3842,6 +3566,7 @@ function sections:colorpicker(props)
 			Parent = cpcolor
 		}
 	)
+	--
 	local title = utility.new(
 		"TextLabel",
 		{
@@ -3850,8 +3575,6 @@ function sections:colorpicker(props)
 			Position = UDim2.new(0,0,0,0),
 			Font = self.comet.font,
 			Text = name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -3859,6 +3582,7 @@ function sections:colorpicker(props)
 			Parent = colorpickerholder
 		}
 	)
+	--
 	local button = utility.new(
 		"TextButton",
 		{
@@ -3874,11 +3598,15 @@ function sections:colorpicker(props)
 			Parent = colorpickerholder
 		}
 	)
+	--
 	local cpholder = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,230),
 			Position = UDim2.new(0,0,1,5),
 			Visible = false,
@@ -3886,35 +3614,21 @@ function sections:colorpicker(props)
 			Parent = colorpickerholder
 		}
 	)
-	applyRounding(cpholder, rounding)
-	applyBorders(cpholder, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
-	local outline2c = utility.new(
+	--
+	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			ZIndex = 5,
 			Parent = cpholder
 		}
 	)
-	applyBorders(outline2c, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
-	local colorTop = utility.new(
+	--
+	local color = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0),
@@ -3923,10 +3637,12 @@ function sections:colorpicker(props)
 			Size = UDim2.new(1,-2,0,1),
 			Position = UDim2.new(0.5,0,0,0),
 			ZIndex = 5,
-			Parent = outline2c
+			Parent = outline2
 		}
 	)
-	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],colorTop)
+	--
+	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"],color)
+	--
 	local cptitle = utility.new(
 		"TextLabel",
 		{
@@ -3936,45 +3652,43 @@ function sections:colorpicker(props)
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.comet.font,
 			Text = cpname or name,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
 			TextXAlignment = "Left",
 			ZIndex = 5,
-			Parent = outline2c
+			Parent = outline2
 		}
 	)
+	--
 	local cpholder2 = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0.875,0,0,150),
 			Position = UDim2.new(0,5,0,20),
 			ZIndex = 5,
-			Parent = outline2c
+			Parent = outline2
 		}
 	)
+	--
 	local outline3 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromHSV(h,1,1),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			ZIndex = 5,
 			Parent = cpholder2
 		}
 	)
-	applyBorders(outline3, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local cpimage = utility.new(
 		"ImageButton",
 		{
@@ -3987,6 +3701,7 @@ function sections:colorpicker(props)
 			Parent = outline3
 		}
 	)
+	--
 	local cpcursor = utility.new(
 		"ImageLabel",
 		{
@@ -4000,44 +3715,35 @@ function sections:colorpicker(props)
 			Parent = cpimage
 		}
 	)
+	--
 	local huepicker = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(1,0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0.05,0,0,150),
 			Position = UDim2.new(1,-5,0,20),
 			ZIndex = 5,
-			Parent = outline2c
+			Parent = outline2
 		}
 	)
-	applyBorders(huepicker, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local outline4 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			ZIndex = 5,
 			Parent = huepicker
 		}
 	)
-	applyBorders(outline4, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	--
 	local huebutton = utility.new(
 		"TextButton",
 		{
@@ -4054,6 +3760,7 @@ function sections:colorpicker(props)
 			Parent = huepicker
 		}
 	)
+	--
 	utility.new(
 		"UIGradient",
 		{
@@ -4062,36 +3769,36 @@ function sections:colorpicker(props)
 			Parent = outline4
 		}
 	)
+	--
 	local huecursor = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(0,12,0,6),
 			Position = UDim2.new(0.5,0,h,0),
 			ZIndex = 5,
 			Parent = outline4
 		}
 	)
-	applyBorders(huecursor, {
-		Enabled = true,
-		Top = true,
-		Right = true,
-		Bottom = true,
-		Left = true,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = 1
-	})
+	--
 	local huecursor_inline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromHSV(h,1,1),
+			BorderColor3 = Color3.fromRGB(255, 255, 255),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			ZIndex = 5,
 			Parent = huecursor
 		}
 	)
+	--
 	local function textbox(parent,size,position)
 		local textbox_holder = utility.new(
 			"Frame",
@@ -4104,45 +3811,35 @@ function sections:colorpicker(props)
 				Parent = parent
 			}
 		)
+		--
 		local outline5 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(12, 12, 12),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0,0,0,0),
 				Size = UDim2.new(1,0,1,0),
 				ZIndex = 5,
 				Parent = textbox_holder
 			}
 		)
-		applyRounding(outline5, rounding)
-		applyBorders(outline5, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(12,12,12),
-			Thickness = borderCfg.borderThickness
-		})
+		--
 		local outline6 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(56, 56, 56),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0,0,0,0),
 				Size = UDim2.new(1,0,1,0),
 				ZIndex = 5,
 				Parent = outline5
 			}
 		)
-		applyBorders(outline6, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(56,56,56),
-			Thickness = borderCfg.borderThickness
-		})
+		--
 		local color2 = utility.new(
 			"Frame",
 			{
@@ -4155,6 +3852,7 @@ function sections:colorpicker(props)
 				Parent = outline6
 			}
 		)
+		--
 		utility.new(
 			"UIGradient",
 			{
@@ -4163,6 +3861,7 @@ function sections:colorpicker(props)
 				Parent = color2
 			}
 		)
+		--
 		local tbox = utility.new(
 			"TextBox",
 			{
@@ -4173,7 +3872,6 @@ function sections:colorpicker(props)
 				PlaceholderColor3 = Color3.fromRGB(255,255,255),
 				PlaceholderText = "",
 				Text = "",
-				RichText = true,
 				TextColor3 = Color3.fromRGB(255,255,255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -4182,6 +3880,7 @@ function sections:colorpicker(props)
 				Parent = textbox_holder
 			}
 		)
+		--
 		local tbox_button = utility.new(
 			"TextButton",
 			{
@@ -4198,21 +3897,25 @@ function sections:colorpicker(props)
 				Parent = textbox_holder
 			}
 		)
+		--
 		tbox_button.MouseButton1Down:Connect(function()
 			tbox:CaptureFocus()
 		end)
+		--
 		return {textbox_holder,tbox,outline5}
 	end
-	local red = textbox(outline2c,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
-	local green = textbox(outline2c,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
+	--
+	local red = textbox(outline2,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
+	local green = textbox(outline2,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
 	green[1].AnchorPoint = Vector2.new(0.5,0)
 	green[1].Position = UDim2.new(0.5,0,0,175)
-	local blue = textbox(outline2c,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
+	local blue = textbox(outline2,UDim2.new(0,62,0,20),UDim2.new(0,5,0,175))
 	blue[1].AnchorPoint = Vector2.new(1,0)
 	blue[1].Position = UDim2.new(1,-5,0,175)
-	local hex = textbox(outline2c,UDim2.new(1,-10,0,20),UDim2.new(0,5,0,200))
+	local hex = textbox(outline2,UDim2.new(1,-10,0,20),UDim2.new(0,5,0,200))
 	hex[2].Size = UDim2.new(1,-12,1,0)
 	hex[2].TextXAlignment = "Left"
+	-- // colorpicker tbl
 	colorpicker = {
 		["comet"] = self.comet,
 		["cpholder"] = cpholder,
@@ -4232,14 +3935,18 @@ function sections:colorpicker(props)
 		["hex"] = hex[2],
 		["callback"] = callback
 	}
+	--
 	table.insert(self.comet.colorpickers,colorpicker)
+	--
 	local function updateboxes()
 		colorpicker.red.PlaceholderText = "R: "..tostring(math.floor(colorpicker.current.R*255))
 		colorpicker.green.PlaceholderText = "G: "..tostring(math.floor(colorpicker.current.G*255))
 		colorpicker.blue.PlaceholderText = "B: "..tostring(math.floor(colorpicker.current.B*255))
 		colorpicker.hex.PlaceholderText = "Hex: "..utility.to_hex(colorpicker.current)
 	end
+	--
 	updateboxes()
+	--
 	local function movehue()
 		local posy = math.clamp(plr:GetMouse().Y-outline3.AbsolutePosition.Y,0,outline3.AbsoluteSize.Y)
 		local resy = (1/outline3.AbsoluteSize.Y)*posy
@@ -4252,6 +3959,7 @@ function sections:colorpicker(props)
 		colorpicker.callback(colorpicker.current)
 		huecursor:TweenPosition(UDim2.new(0.5,0,resy,0),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.15,true)
 	end
+	--
 	local function movecp()
 		local posx,posy = math.clamp(plr:GetMouse().X-outline3.AbsolutePosition.X,0,outline3.AbsoluteSize.X),math.clamp(plr:GetMouse().Y-outline3.AbsolutePosition.Y,0,outline3.AbsoluteSize.Y)
 		local resx,resy = (1/outline3.AbsoluteSize.X)*posx,(1/outline3.AbsoluteSize.Y)*posy
@@ -4263,19 +3971,23 @@ function sections:colorpicker(props)
 		colorpicker.callback(colorpicker.current)
 		cpcursor:TweenPosition(UDim2.new(resx,0,resy,0),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.15,true)
 	end
+	--
 	button.MouseButton1Down:Connect(function()
 		self.comet:closewindows(colorpicker)
 		cpholder.Visible = not colorpicker.open
 		colorpicker.open = not colorpicker.open
 	end)
+	--
 	huebutton.MouseButton1Down:Connect(function()
 		colorpicker.hue = true
 		movehue()
 	end)
+	--
 	cpimage.MouseButton1Down:Connect(function()
 		colorpicker.cp = true
 		movecp()
 	end)
+	--
 	uis.InputChanged:Connect(function()
 		if colorpicker.cp then
 			movecp()
@@ -4284,6 +3996,7 @@ function sections:colorpicker(props)
 			movehue()
 		end
 	end)
+	--
 	uis.InputEnded:Connect(function(Input)
 		if Input.UserInputType.Name == 'MouseButton1'  then
 			if colorpicker.cp then
@@ -4294,9 +4007,11 @@ function sections:colorpicker(props)
 			end
 		end
 	end)
+	--
 	red[2].Focused:Connect(function()
 		red[3].BorderColor3 = self.comet.theme.accent
 	end)
+	--
 	red[2].FocusLost:Connect(function()
 		local saved = red[2].Text
 		local num = tonumber(saved)
@@ -4317,9 +4032,11 @@ function sections:colorpicker(props)
 			red[3].BorderColor3 = Color3.fromRGB(12,12,12)
 		end
 	end)
+	--
 	green[2].Focused:Connect(function()
 		green[3].BorderColor3 = self.comet.theme.accent
 	end)
+	--
 	green[2].FocusLost:Connect(function()
 		local saved = green[2].Text
 		local num = tonumber(saved)
@@ -4340,9 +4057,11 @@ function sections:colorpicker(props)
 			green[3].BorderColor3 = Color3.fromRGB(12,12,12)
 		end
 	end)
+	--
 	blue[2].Focused:Connect(function()
 		blue[3].BorderColor3 = self.comet.theme.accent
 	end)
+	--
 	blue[2].FocusLost:Connect(function()
 		local saved = blue[2].Text
 		local num = tonumber(saved)
@@ -4363,13 +4082,15 @@ function sections:colorpicker(props)
 			blue[3].BorderColor3 = Color3.fromRGB(12,12,12)
 		end
 	end)
+	--
 	hex[2].Focused:Connect(function()
 		hex[3].BorderColor3 = self.comet.theme.accent
 	end)
+	--
 	hex[2].FocusLost:Connect(function()
 		local saved = hex[2].Text
 		if #saved >= 6 and #saved <= 7 then
-			local e,sr = pcall(function()
+			local e,s = pcall(function()
 				utility.from_hex(saved)
 			end)
 			if e == true then
@@ -4391,33 +4112,40 @@ function sections:colorpicker(props)
 			hex[3].BorderColor3 = Color3.fromRGB(12,12,12)
 		end
 	end)
+	--
 	local pointer = props.pointer or props.Pointer or props.pointername or props.Pointername or props.PointerName or props.pointerName or nil
+	--
 	if pointer then
 		if self.pointers then
 			self.pointers[tostring(pointer)] = colorpicker
 		end
 	end
+	--
 	self.comet.labels[#self.comet.labels+1] = title
 	self.comet.labels[#self.comet.labels+1] = hex[2]
 	self.comet.labels[#self.comet.labels+1] = red[2]
 	self.comet.labels[#self.comet.labels+1] = green[2]
 	self.comet.labels[#self.comet.labels+1] = blue[2]
 	self.comet.labels[#self.comet.labels+1] = cptitle
+	-- // metatable indexing + return
 	setmetatable(colorpicker, colorpickers)
 	return colorpicker
 end
-
+--
 function sections:selection(props)
+	-- // properties
 	local title = props.title or props.Title or "selection"
 	local height = props.height or props.Height or 222
 	local textboxPlaceholder = props.placeholder or props.Placeholder or "Item Name"
-	local rounding = props.rounding or self.rounding
-	local borderCfg = borderOptions(props, self.borders)
+	
+	-- // variables
 	local selection = {}
 	local items = {}
 	local buttons = {}
 	local createdItems = {}
 	local selected = nil
+	
+	-- // main
 	local holder = utility.new(
 		"Frame",
 		{
@@ -4426,6 +4154,8 @@ function sections:selection(props)
 			Parent = self.content
 		}
 	)
+	
+	-- Add UIListLayout constraint if it doesn't exist
 	if not self.content:FindFirstChildOfClass("UIListLayout") then
 		utility.new(
 			"UIListLayout",
@@ -4436,41 +4166,31 @@ function sections:selection(props)
 			}
 		)
 	end
+	
 	local outline = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, 0, 1, 0),
 			Parent = holder
 		}
 	)
-	applyRounding(outline, rounding)
-	applyBorders(outline, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	
 	local outline2 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, 0, 1, 0),
 			Parent = outline
 		}
 	)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	
 	local titleLabel = utility.new(
 		"TextLabel",
 		{
@@ -4479,8 +4199,6 @@ function sections:selection(props)
 			Position = UDim2.new(0, 0, 0, 3),
 			Font = self.comet.font,
 			Text = title,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = Color3.fromRGB(255, 255, 255),
 			TextSize = self.comet.textsize,
 			TextStrokeTransparency = 0,
@@ -4488,57 +4206,54 @@ function sections:selection(props)
 			Parent = outline
 		}
 	)
+	
 	self.comet.labels[#self.comet.labels + 1] = titleLabel
+	
 	local color = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = self.comet.theme.accent,
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, -6, 0, 1),
 			Position = UDim2.new(0.5, 0, 0, 19),
 			Parent = outline
 		}
 	)
+	
 	table.insert(self.comet.themeitems["accent"]["BackgroundColor3"], color)
+	
 	local itemsHolder = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, -10, 1, -25),
 			Position = UDim2.new(0.5, 0, 0, 25),
 			Parent = outline
 		}
 	)
-	applyRounding(itemsHolder, rounding)
-	applyBorders(itemsHolder, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+	
 	local outline3 = utility.new(
 		"Frame",
 		{
 			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BorderMode = "Inset",
+			BorderSizePixel = 1,
 			Size = UDim2.new(1, 0, 1, 0),
 			Parent = itemsHolder
 		}
 	)
-	applyBorders(outline3, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+	
 	local buttonAreaHeight = 0
 	local updateButtonArea
+	
 	local buttonArea = utility.new(
 		"Frame",
 		{
@@ -4550,6 +4265,7 @@ function sections:selection(props)
 			Parent = outline3
 		}
 	)
+	
 	utility.new(
 		"UIListLayout",
 		{
@@ -4558,6 +4274,7 @@ function sections:selection(props)
 			Parent = buttonArea
 		}
 	)
+	
 	local scrollFrame = utility.new(
 		"ScrollingFrame",
 		{
@@ -4577,6 +4294,7 @@ function sections:selection(props)
 			Parent = outline3
 		}
 	)
+	
 	utility.new(
 		"UIListLayout",
 		{
@@ -4585,12 +4303,15 @@ function sections:selection(props)
 			Parent = scrollFrame
 		}
 	)
+	
 	updateButtonArea = function()
 		buttonAreaHeight = (#buttons * 22) + (math.max(0, #buttons - 1) * 2)
 		buttonArea.Size = UDim2.new(1, -10, 0, buttonAreaHeight)
 		scrollFrame.Size = UDim2.new(1, -10, 1, -buttonAreaHeight - 12)
 	end
-	local function createItemUI(namei, metadata)
+	
+	-- // helper functions
+	local function createItemUI(name, metadata)
 		local itemButton = utility.new(
 			"TextButton",
 			{
@@ -4602,6 +4323,7 @@ function sections:selection(props)
 				Parent = scrollFrame
 			}
 		)
+		
 		local grey = utility.new(
 			"Frame",
 			{
@@ -4615,6 +4337,7 @@ function sections:selection(props)
 				Parent = itemButton
 			}
 		)
+		
 		local itemTitle = utility.new(
 			"TextLabel",
 			{
@@ -4623,9 +4346,7 @@ function sections:selection(props)
 				Size = UDim2.new(1, -10, 1, 0),
 				Position = UDim2.new(0.5, 0, 0, 0),
 				Font = self.comet.font,
-				Text = namei,
-				RichText = true,
-				TextWrapped=true,
+				Text = name,
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -4633,15 +4354,19 @@ function sections:selection(props)
 				Parent = itemButton
 			}
 		)
+		
 		self.comet.labels[#self.comet.labels + 1] = itemTitle
+		
 		local item = {
 			button = itemButton,
 			grey = grey,
 			title = itemTitle,
-			name = namei,
+			name = name,
 			metadata = metadata
 		}
+		
 		table.insert(createdItems, item)
+		
 		itemButton.MouseButton1Down:Connect(function()
 			for i, v in pairs(createdItems) do
 				if v ~= item then
@@ -4653,16 +4378,20 @@ function sections:selection(props)
 					end
 				end
 			end
+			
 			item.grey.Visible = true
 			item.title.TextColor3 = self.comet.theme.accent
 			table.insert(self.comet.themeitems["accent"]["TextColor3"], item.title)
 			selected = item
 		end)
+		
 		return item
 	end
-	local function createButton(propsb)
-		local btnName = propsb.name or propsb.Name or "Button"
-		local callback = propsb.callback or propsb.Callback or function() end
+	
+	local function createButton(props)
+		local btnName = props.name or props.Name or "Button"
+		local callback = props.callback or props.Callback or function() end
+		
 		local btnHolder = utility.new(
 			"Frame",
 			{
@@ -4673,10 +4402,14 @@ function sections:selection(props)
 				Parent = buttonArea
 			}
 		)
+		
 		local btnOutline = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(12, 12, 12),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
 				Size = UDim2.new(1, 0, 1, 0),
@@ -4684,35 +4417,21 @@ function sections:selection(props)
 				Parent = btnHolder
 			}
 		)
-		applyRounding(btnOutline, rounding)
-		applyBorders(btnOutline, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(12,12,12),
-			Thickness = borderCfg.borderThickness
-		})
+		
 		local btnOutline2 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(56, 56, 56),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 5,
 				Parent = btnOutline
 			}
 		)
-		applyBorders(btnOutline2, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(56,56,56),
-			Thickness = borderCfg.borderThickness
-		})
+		
 		local btnColor = utility.new(
 			"Frame",
 			{
@@ -4725,17 +4444,19 @@ function sections:selection(props)
 				Parent = btnOutline2
 			}
 		)
+		
 		utility.new(
 			"UIGradient",
 			{
 				Color = ColorSequence.new{
-					ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199, 191, 204)),
+					ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199, 191, 204)), 
 					ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))
 				},
 				Rotation = 90,
 				Parent = btnColor
 			}
 		)
+		
 		local btnButton = utility.new(
 			"TextButton",
 			{
@@ -4744,7 +4465,6 @@ function sections:selection(props)
 				Size = UDim2.new(1, 0, 1, 0),
 				Position = UDim2.new(0, 0, 0, 0),
 				Text = btnName,
-				RichText = true,
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -4753,15 +4473,19 @@ function sections:selection(props)
 				Parent = btnHolder
 			}
 		)
+		
 		self.comet.labels[#self.comet.labels + 1] = btnButton
+		
 		btnButton.MouseButton1Click:Connect(function()
 			btnOutline.BorderColor3 = self.comet.theme.accent
 			wait(0.05)
 			btnOutline.BorderColor3 = Color3.fromRGB(12, 12, 12)
+			
 			if selected then
 				callback(selected.name, selected.metadata)
 			end
 		end)
+		
 		return {
 			holder = btnHolder,
 			outline = btnOutline,
@@ -4776,17 +4500,21 @@ function sections:selection(props)
 			end
 		}
 	end
-	function selection:add(namei, metadata)
-		if not items[namei] then
-			items[namei] = metadata or {}
-			createItemUI(namei, items[namei])
+	
+	-- // api
+	function selection:add(name, metadata)
+		if not items[name] then
+			items[name] = metadata or {}
+			createItemUI(name, items[name])
 		end
 	end
-	function selection:remove(namei)
-		if items[namei] then
-			items[namei] = nil
+	
+	function selection:remove(name)
+		if items[name] then
+			items[name] = nil
+			
 			for i, v in pairs(createdItems) do
-				if v.name == namei then
+				if v.name == name then
 					if selected == v then
 						selected = nil
 					end
@@ -4797,15 +4525,18 @@ function sections:selection(props)
 			end
 		end
 	end
-	function selection:get(namei)
-		return items[namei]
+	
+	function selection:get(name)
+		return items[name]
 	end
+	
 	function selection:getSelected()
 		if selected then
 			return selected.name, selected.metadata
 		end
 		return nil, nil
 	end
+	
 	function selection:clear()
 		for i, v in pairs(createdItems) do
 			v.button:Remove()
@@ -4814,15 +4545,18 @@ function sections:selection(props)
 		items = {}
 		selected = nil
 	end
-	function selection:addButton(propsb)
-		local btn = createButton(propsb)
+	
+	function selection:addButton(props)
+		local btn = createButton(props)
 		table.insert(buttons, btn.holder)
 		updateButtonArea()
 		return btn
 	end
-	function selection:addTextbox(propsb)
-		local placeholder = propsb.placeholder or propsb.Placeholder or textboxPlaceholder
-		local callback = propsb.callback or propsb.Callback or function() end
+	
+	function selection:addTextbox(props)
+		local placeholder = props.placeholder or props.Placeholder or textboxPlaceholder
+		local callback = props.callback or props.Callback or function() end
+		
 		local tboxHolder = utility.new(
 			"Frame",
 			{
@@ -4833,10 +4567,14 @@ function sections:selection(props)
 				Parent = buttonArea
 			}
 		)
+		
 		local outline5 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(12, 12, 12),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0.5, 0, 0, 0),
 				AnchorPoint = Vector2.new(0.5, 0),
 				Size = UDim2.new(1, 0, 1, 0),
@@ -4844,35 +4582,21 @@ function sections:selection(props)
 				Parent = tboxHolder
 			}
 		)
-		applyRounding(outline5, rounding)
-		applyBorders(outline5, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(12,12,12),
-			Thickness = borderCfg.borderThickness
-		})
+		
 		local outline6 = utility.new(
 			"Frame",
 			{
 				BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+				BorderColor3 = Color3.fromRGB(56, 56, 56),
+				BorderMode = "Inset",
+				BorderSizePixel = 1,
 				Position = UDim2.new(0, 0, 0, 0),
 				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 5,
 				Parent = outline5
 			}
 		)
-		applyBorders(outline6, {
-			Enabled = borderCfg.border,
-			Top = borderCfg.borderTop,
-			Right = borderCfg.borderRight,
-			Bottom = borderCfg.borderBottom,
-			Left = borderCfg.borderLeft,
-			Color = Color3.fromRGB(56,56,56),
-			Thickness = borderCfg.borderThickness
-		})
+		
 		local color2 = utility.new(
 			"Frame",
 			{
@@ -4885,17 +4609,19 @@ function sections:selection(props)
 				Parent = outline6
 			}
 		)
+		
 		utility.new(
 			"UIGradient",
 			{
 				Color = ColorSequence.new{
-					ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199, 191, 204)),
+					ColorSequenceKeypoint.new(0.00, Color3.fromRGB(199, 191, 204)), 
 					ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))
 				},
 				Rotation = 90,
 				Parent = color2
 			}
 		)
+		
 		local tbox = utility.new(
 			"TextBox",
 			{
@@ -4906,7 +4632,6 @@ function sections:selection(props)
 				PlaceholderColor3 = Color3.fromRGB(178, 178, 178),
 				PlaceholderText = placeholder,
 				Text = "",
-				RichText = true,
 				TextColor3 = Color3.fromRGB(255, 255, 255),
 				TextSize = self.comet.textsize,
 				TextStrokeTransparency = 0,
@@ -4915,6 +4640,7 @@ function sections:selection(props)
 				Parent = tboxHolder
 			}
 		)
+		
 		local tboxButton = utility.new(
 			"TextButton",
 			{
@@ -4931,18 +4657,23 @@ function sections:selection(props)
 				Parent = tboxHolder
 			}
 		)
+		
 		tboxButton.MouseButton1Down:Connect(function()
 			tbox:CaptureFocus()
 		end)
+		
 		tbox.Focused:Connect(function()
 			outline5.BorderColor3 = self.comet.theme.accent
 		end)
+		
 		tbox.FocusLost:Connect(function()
 			outline5.BorderColor3 = Color3.fromRGB(12, 12, 12)
 			callback(tbox.Text)
 		end)
+		
 		table.insert(buttons, tboxHolder)
 		updateButtonArea()
+		
 		return {
 			holder = tboxHolder,
 			textbox = tbox,
@@ -4963,8 +4694,11 @@ function sections:selection(props)
 			end
 		}
 	end
+	
 	selection.comet = self.comet
+	
 	return selection
+	
 end
 
 local activeNotifications = {}
@@ -4973,72 +4707,50 @@ function comet:notify(props)
     local title = props.title or props.Title or "Notification"
     local text = props.text or props.Text or props.content or props.Content or "Notification content"
     local duration = props.duration or props.Duration or 3
-    local rounding = props.rounding or self.rounding
-    local borderCfg = borderOptions(props, self.borders)
+    
     local notification = {}
     local notifHolder = utility.new(
         "Frame",
         {
             AnchorPoint = Vector2.new(1, 1),
             BackgroundColor3 = self.theme.accent,
+            BorderColor3 = Color3.fromRGB(12, 12, 12),
+            BorderSizePixel = 1,
             Size = UDim2.new(0, 300, 0, 70),
             Position = UDim2.new(1, 350, 1, -10),
             ZIndex = 10000,
             Parent = self.screen
         }
     )
-	applyRounding(notifHolder, rounding)
-	applyBorders(notifHolder, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(12,12,12),
-		Thickness = borderCfg.borderThickness
-	})
+    
     local outline2 = utility.new(
         "Frame",
         {
             AnchorPoint = Vector2.new(0.5, 0.5),
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BorderColor3 = Color3.fromRGB(12, 12, 12),
+            BorderSizePixel = 1,
             Size = UDim2.new(1, -4, 1, -4),
             Position = UDim2.new(0.5, 0, 0.5, 0),
             ZIndex = 10001,
             Parent = notifHolder
         }
     )
-	applyRounding(outline2, rounding)
-	applyBorders(outline2, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = borderCfg.borderColor,
-		Thickness = borderCfg.borderThickness
-	})
+    
     local indent = utility.new(
         "Frame",
         {
             AnchorPoint = Vector2.new(0.5, 0.5),
             BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            BorderColor3 = Color3.fromRGB(56, 56, 56),
+            BorderSizePixel = 1,
             Size = UDim2.new(1, 0, 1, 0),
             Position = UDim2.new(0.5, 0, 0.5, 0),
             ZIndex = 10002,
             Parent = outline2
         }
     )
-	applyRounding(indent, rounding)
-	applyBorders(indent, {
-		Enabled = borderCfg.border,
-		Top = borderCfg.borderTop,
-		Right = borderCfg.borderRight,
-		Bottom = borderCfg.borderBottom,
-		Left = borderCfg.borderLeft,
-		Color = Color3.fromRGB(56,56,56),
-		Thickness = borderCfg.borderThickness
-	})
+    
     local titleLabel = utility.new(
         "TextLabel",
         {
@@ -5048,8 +4760,6 @@ function comet:notify(props)
             Position = UDim2.new(0.5, 0, 0, 5),
             Font = self.font,
             Text = title,
-            RichText = true,
-            TextWrapped=true,
             TextColor3 = self.theme.accent,
             TextXAlignment = "Left",
             TextSize = self.textsize,
@@ -5058,6 +4768,7 @@ function comet:notify(props)
             Parent = indent
         }
     )
+    
     local contentLabel = utility.new(
         "TextLabel",
         {
@@ -5067,8 +4778,6 @@ function comet:notify(props)
             Position = UDim2.new(0.5, 0, 0, 25),
             Font = self.font,
             Text = text,
-            RichText = true,
-            TextWrapped=true,
             TextColor3 = Color3.fromRGB(255, 255, 255),
             TextXAlignment = "Left",
             TextYAlignment = "Top",
@@ -5079,6 +4788,7 @@ function comet:notify(props)
             Parent = indent
         }
     )
+    
     notification = {
         holder = notifHolder,
         title = titleLabel,
@@ -5086,6 +4796,7 @@ function comet:notify(props)
         height = 70,
         removing = false
     }
+
     local function updatePositions()
         local yOffset = -10
         for i = #activeNotifications, 1, -1 do
@@ -5102,6 +4813,7 @@ function comet:notify(props)
             end
         end
     end
+
     table.insert(activeNotifications, notification)
     notifHolder:TweenPosition(
         UDim2.new(1, -10, 1, -10),
@@ -5110,11 +4822,14 @@ function comet:notify(props)
         0.5,
         true
     )
+
     task.wait(0.1)
     updatePositions()
+
     task.delay(duration, function()
         if not notification.removing then
             notification.removing = true
+
             notifHolder:TweenPosition(
                 UDim2.new(1, 350, notifHolder.Position.Y.Scale, notifHolder.Position.Y.Offset),
                 Enum.EasingDirection.In,
@@ -5122,17 +4837,21 @@ function comet:notify(props)
                 0.5,
                 true
             )
+            
             task.wait(0.5)
+
             for i, notif in pairs(activeNotifications) do
                 if notif == notification then
                     table.remove(activeNotifications, i)
                     break
                 end
             end
+
             notifHolder:Destroy()
             updatePositions()
         end
     end)
+    
     setmetatable(notification, notifications)
     return notification
 end
@@ -5140,6 +4859,7 @@ end
 function sections:title(props)
 	local text = props.text or props.Text or props.title or props.Title or "Title"
 	local size = props.size or props.Size or props.textsize or props.TextSize or self.comet.textsize
+	
 	local titleholder = utility.new(
 		"Frame",
 		{
@@ -5148,6 +4868,7 @@ function sections:title(props)
 			Parent = self.content
 		}
 	)
+	
 	local titlelabel = utility.new(
 		"TextLabel",
 		{
@@ -5156,8 +4877,6 @@ function sections:title(props)
 			Position = UDim2.new(0, 0, 0, 0),
 			Font = self.comet.font,
 			Text = text,
-			RichText = true,
-			TextWrapped=true,
 			TextColor3 = self.comet.theme.accent,
 			TextSize = size,
 			TextStrokeTransparency = 0,
@@ -5166,19 +4885,24 @@ function sections:title(props)
 			Parent = titleholder
 		}
 	)
+	
 	table.insert(self.comet.themeitems["accent"]["TextColor3"], titlelabel)
 	self.comet.labels[#self.comet.labels + 1] = titlelabel
+	
 	local title = {
 		comet = self.comet,
 		label = titlelabel,
 		holder = titleholder
 	}
+	
 	function title:set(newtext)
 		titlelabel.Text = newtext
 	end
+	
 	function title:setcolor(color)
 		titlelabel.TextColor3 = color
 	end
+	
 	return title
 end
 
@@ -5187,6 +4911,7 @@ function sections:paragraph(props)
 	local text = props.text or props.Text or props.content or props.Content or "Paragraph text"
 	local titlesize = props.titlesize or props.TitleSize or self.comet.textsize
 	local textsize = props.textsize or props.TextSize or self.comet.textsize
+
 	local tempLabel = utility.new(
 		"TextLabel",
 		{
@@ -5194,8 +4919,6 @@ function sections:paragraph(props)
 			Size = UDim2.new(1, 0, 0, 1000),
 			Font = self.comet.font,
 			Text = text,
-			RichText = true,
-			TextWrapped=true,
 			TextSize = textsize,
 			TextWrapped = true,
 			TextYAlignment = "Top",
@@ -5203,13 +4926,16 @@ function sections:paragraph(props)
 			Parent = self.content.Parent
 		}
 	)
+	
 	task.wait()
 	local contentHeight = tempLabel.TextBounds.Y
 	tempLabel:Destroy()
+	
 	local totalHeight = contentHeight + 5
 	if title then
 		totalHeight = totalHeight + titlesize + 5
 	end
+	
 	local paraholder = utility.new(
 		"Frame",
 		{
@@ -5218,8 +4944,10 @@ function sections:paragraph(props)
 			Parent = self.content
 		}
 	)
+	
 	local yOffset = 0
 	local titlelabel = nil
+	
 	if title then
 		titlelabel = utility.new(
 			"TextLabel",
@@ -5229,8 +4957,6 @@ function sections:paragraph(props)
 				Position = UDim2.new(0, 0, 0, 0),
 				Font = self.comet.font,
 				Text = title,
-				TextWrapped=true,
-				RichText = true,
 				TextColor3 = self.comet.theme.accent,
 				TextSize = titlesize,
 				TextStrokeTransparency = 0,
@@ -5239,10 +4965,12 @@ function sections:paragraph(props)
 				Parent = paraholder
 			}
 		)
+		
 		table.insert(self.comet.themeitems["accent"]["TextColor3"], titlelabel)
 		self.comet.labels[#self.comet.labels + 1] = titlelabel
 		yOffset = titlesize + 5
 	end
+	
 	local contentlabel = utility.new(
 		"TextLabel",
 		{
@@ -5251,10 +4979,8 @@ function sections:paragraph(props)
 			Position = UDim2.new(0, 0, 0, yOffset),
 			Font = self.comet.font,
 			Text = text,
-			RichText = true,
 			TextColor3 = Color3.fromRGB(200, 200, 200),
 			TextSize = textsize,
-			TextWrapped=true,
 			TextStrokeTransparency = 0,
 			TextXAlignment = "Left",
 			TextYAlignment = "Top",
@@ -5262,13 +4988,16 @@ function sections:paragraph(props)
 			Parent = paraholder
 		}
 	)
+	
 	self.comet.labels[#self.comet.labels + 1] = contentlabel
+	
 	local paragraph = {
 		comet = self.comet,
 		titlelabel = titlelabel,
 		contentlabel = contentlabel,
 		holder = paraholder
 	}
+	
 	function paragraph:settext(newtext)
 		contentlabel.Text = newtext
 		local tempLabel2 = utility.new(
@@ -5278,35 +5007,39 @@ function sections:paragraph(props)
 				Size = UDim2.new(1, 0, 0, 1000),
 				Font = self.comet.font,
 				Text = newtext,
-				RichText = true,
 				TextSize = textsize,
-				TextWrapped=true,
 				TextWrapped = true,
 				TextYAlignment = "Top",
 				Visible = false,
 				Parent = paraholder.Parent
 			}
 		)
+		
 		task.wait()
 		local newHeight = tempLabel2.TextBounds.Y
 		tempLabel2:Destroy()
+		
 		contentlabel.Size = UDim2.new(1, 0, 0, newHeight)
 		local newTotalHeight = newHeight + yOffset + 5
 		paraholder.Size = UDim2.new(1, 0, 0, newTotalHeight)
 	end
+	
 	function paragraph:settitle(newtitle)
 		if titlelabel then
 			titlelabel.Text = newtitle
 		end
 	end
+	
 	function paragraph:settitlecolor(color)
 		if titlelabel then
 			titlelabel.TextColor3 = color
 		end
 	end
+	
 	function paragraph:settextcolor(color)
 		contentlabel.TextColor3 = color
 	end
+	
 	return paragraph
 end
 
